@@ -1,28 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 180" role="img" aria-label="derci">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 220" role="img" aria-label="derci logo">
   <defs>
-    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#000000" flood-opacity="0.35"/>
+    <filter id="logo-shadow" x="-20%" y="-20%" width="150%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.8" flood-color="#000" flood-opacity="0.38"/>
+      <feDropShadow dx="0" dy="5" stdDeviation="3.2" flood-color="#000" flood-opacity="0.24"/>
     </filter>
-    <linearGradient id="word-gradient" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f9fcff"/>
-      <stop offset="100%" stop-color="#dde7ef"/>
+    <linearGradient id="word-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f8fbfe"/>
+      <stop offset="1" stop-color="#e4edf4"/>
     </linearGradient>
-    <radialGradient id="dot-gradient" cx="35%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#53d8e7"/>
-      <stop offset="100%" stop-color="#26a6bc"/>
+    <radialGradient id="dot-fill" cx="35%" cy="30%" r="70%">
+      <stop offset="0" stop-color="#5be1ef"/>
+      <stop offset="1" stop-color="#2cb1c6"/>
     </radialGradient>
   </defs>
 
-  <g filter="url(#soft-shadow)">
+  <g filter="url(#logo-shadow)">
     <text
-      x="24"
-      y="132"
-      font-size="152"
+      x="22"
+      y="162"
       font-family="Georgia, 'Times New Roman', serif"
+      font-size="190"
       font-weight="600"
-      letter-spacing="1.2"
-      fill="url(#word-gradient)"
+      letter-spacing="1"
+      fill="url(#word-fill)"
+      stroke="#9aa8b3"
+      stroke-width="1.8"
+      paint-order="stroke"
     >derci</text>
-    <circle cx="651" cy="41" r="18" fill="url(#dot-gradient)"/>
+    <circle cx="783" cy="52" r="24" fill="url(#dot-fill)"/>
   </g>
 </svg>
