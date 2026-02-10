@@ -202,10 +202,11 @@
               label: "Effective capacity",
               data: capacity,
               borderColor: "rgba(19,74,112,0.92)",
-              borderDash: [6,6],
+              borderDash: [2, 4],
+              borderCapStyle: "round",
               tension: 0,
               pointRadius: 0,
-              borderWidth: 2
+              borderWidth: 1.5
             },
             {
               label: "Strain area",
@@ -224,7 +225,7 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { labels: { color: "#5f7382", boxWidth: 10, boxHeight: 10 } }
+            legend: { labels: { color: "#5f7382", boxWidth: 9, boxHeight: 9 } }
           },
           scales: {
             x: { ticks: { color: "#5f7382", maxTicksLimit: 8 }, grid: { color: "rgba(177,196,208,0.55)" } },
