@@ -1,0 +1,1976 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Disposition Forecast MVP</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg-primary:#f2f3f4;        /* pearl */
+      --bg-secondary:#e6e7e8;      /* light graphite */
+      --text-primary:#2b2e30;     /* charcoal graphite */
+      --text-secondary:#5a5f63;
+      --accent-primary:#b87333;   /* copper */
+      --accent-secondary:#9aa6a0; /* muted sage */
+      --border-subtle:#d1d3d4;
+      --danger:#c24d3a;           /* oxide warning */
+      --card:#fafafa;
+      --shadow: 0 10px 26px rgba(43,46,48,0.10);
+      --radius: 14px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text-primary);
+      background:linear-gradient(180deg, var(--bg-primary), #ffffff 45%, var(--bg-primary));
+    }
+
+    .app{
+      display:grid;
+      grid-template-columns: 260px 1fr;
+      min-height:100vh;
+    }
+
+    /* Sidebar */
+    .sidebar{
+      background:linear-gradient(180deg, var(--bg-secondary), #f6f6f6);
+      border-right:1px solid var(--border-subtle);
+      padding:18px 14px;
+      position:sticky;
+      top:0;
+      height:100vh;
+    }
+
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      padding:10px 10px 16px 10px;
+      border-bottom:1px solid var(--border-subtle);
+      margin-bottom:14px;
+    }
+    .brand .name{
+      font-weight:750;
+      letter-spacing:0.2px;
+      font-size:15px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .brand .badge{
+      width:10px;height:10px;
+      border-radius:999px;
+      background:var(--accent-primary);
+      box-shadow: 0 0 0 4px rgba(184,115,51,0.18);
+      flex:0 0 auto;
+    }
+    .brand .sub{
+      color:var(--text-secondary);
+      font-size:12px;
+      line-height:1.3;
+    }
+
+    .nav{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      padding:6px;
+    }
+
+    .nav button{
+      border:1px solid transparent;
+      background:transparent;
+      padding:10px 10px;
+      border-radius:12px;
+      text-align:left;
+      cursor:pointer;
+      color:var(--text-primary);
+      font-weight:650;
+      letter-spacing:0.1px;
+      transition: background 120ms ease, border-color 120ms ease;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .nav button span.meta{
+      font-weight:600;
+      color:var(--text-secondary);
+      font-size:12px;
+    }
+
+    .nav button:hover{
+      background:rgba(184,115,51,0.08);
+      border-color:rgba(184,115,51,0.22);
+    }
+    .nav button.active{
+      background:rgba(184,115,51,0.14);
+      border-color:rgba(184,115,51,0.34);
+    }
+
+    /* Main */
+    .main{
+      display:flex;
+      flex-direction:column;
+      padding:18px 18px 28px 18px;
+      gap:14px;
+    }
+
+    .topbar{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 14px;
+      border:1px solid var(--border-subtle);
+      background:rgba(250,250,250,0.9);
+      border-radius:var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+
+    .topbar-left{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width: 260px;
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      line-height:1.1;
+      gap:4px;
+    }
+    .title .h1{
+      font-size:15px;
+      font-weight:800;
+      letter-spacing:0.2px;
+    }
+    .title .h2{
+      font-size:12px;
+      color:var(--text-secondary);
+      letter-spacing:0.2px;
+    }
+
+    .controls{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .control{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 10px;
+      border:1px solid var(--border-subtle);
+      border-radius:12px;
+      background:var(--card);
+    }
+
+    .control label{
+      font-size:12px;
+      color:var(--text-secondary);
+      font-weight:650;
+    }
+
+    select, input[type="text"], input[type="number"]{
+      border:1px solid var(--border-subtle);
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:13px;
+      outline:none;
+      background:#ffffff;
+      color:var(--text-primary);
+      min-width: 140px;
+    }
+    input[type="number"]{ min-width: 110px; }
+
+    .btn{
+      border:1px solid var(--border-subtle);
+      background:#ffffff;
+      color:var(--text-primary);
+      border-radius:12px;
+      padding:10px 12px;
+      cursor:pointer;
+      font-weight:750;
+      letter-spacing:0.15px;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+    .btn:hover{
+      border-color: rgba(184,115,51,0.45);
+      background: rgba(184,115,51,0.08);
+    }
+    .btn:active{ transform: translateY(1px); }
+
+    .btn.primary{
+      border-color: rgba(184,115,51,0.5);
+      background: rgba(184,115,51,0.14);
+    }
+
+    .toggle{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      border:1px solid var(--border-subtle);
+      background:#ffffff;
+      border-radius:12px;
+    }
+    .toggle .lbl{
+      font-size:12px;
+      color:var(--text-secondary);
+      font-weight:750;
+    }
+    .switch{
+      width:44px;height:24px;
+      border-radius:999px;
+      border:1px solid var(--border-subtle);
+      background: var(--bg-secondary);
+      position:relative;
+      cursor:pointer;
+      flex:0 0 auto;
+    }
+    .switch::after{
+      content:"";
+      position:absolute;
+      top:2px; left:2px;
+      width:20px;height:20px;
+      border-radius:999px;
+      background:#ffffff;
+      border:1px solid var(--border-subtle);
+      transition: left 140ms ease, background 140ms ease;
+    }
+    .switch.on{
+      background: rgba(184,115,51,0.25);
+      border-color: rgba(184,115,51,0.4);
+    }
+    .switch.on::after{
+      left:22px;
+      background: rgba(184,115,51,0.14);
+    }
+
+    /* Grid sections */
+    .grid{
+      display:grid;
+      gap:14px;
+    }
+    .kpis{
+      grid-template-columns: repeat(6, minmax(140px, 1fr));
+    }
+    .row2{
+      grid-template-columns: 1.1fr 1.2fr;
+      align-items:stretch;
+    }
+    .row3{
+      grid-template-columns: 1fr;
+    }
+
+    .card{
+      border:1px solid var(--border-subtle);
+      background:rgba(250,250,250,0.92);
+      border-radius:var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .card-h{
+      padding:12px 14px;
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid var(--border-subtle);
+      background: linear-gradient(180deg, rgba(184,115,51,0.07), rgba(184,115,51,0.00));
+    }
+    .card .card-h .t{
+      font-weight:850;
+      font-size:13px;
+      letter-spacing:0.15px;
+    }
+    .card .card-h .s{
+      font-size:12px;
+      color:var(--text-secondary);
+      font-weight:650;
+    }
+    .card .card-b{
+      padding:14px;
+    }
+
+    .kpi{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      padding:14px;
+      height:100%;
+    }
+    .kpi .label{
+      font-size:12px;
+      color:var(--text-secondary);
+      font-weight:750;
+      letter-spacing:0.15px;
+    }
+    .kpi .value{
+      font-size:22px;
+      font-weight:900;
+      letter-spacing:0.1px;
+      line-height:1.05;
+    }
+    .kpi .hint{
+      font-size:12px;
+      color:var(--text-secondary);
+      font-weight:650;
+      line-height:1.25;
+    }
+    .kpi .flag{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      font-weight:850;
+      color:var(--text-primary);
+    }
+    .dot{
+      width:10px;height:10px;border-radius:999px;
+      background: var(--accent-secondary);
+      box-shadow: 0 0 0 4px rgba(154,166,160,0.20);
+      flex:0 0 auto;
+    }
+    .dot.warn{
+      background: var(--danger);
+      box-shadow: 0 0 0 4px rgba(194,77,58,0.18);
+    }
+
+    /* Calendar */
+    .cal-wrap{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .cal-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .cal-top .month{
+      font-weight:900;
+      letter-spacing:0.2px;
+    }
+    .cal-top .navbtns{
+      display:flex;
+      gap:8px;
+    }
+    .mini-btn{
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid var(--border-subtle);
+      background:#fff;
+      cursor:pointer;
+      font-weight:850;
+      color:var(--text-primary);
+    }
+    .mini-btn:hover{
+      border-color: rgba(184,115,51,0.45);
+      background: rgba(184,115,51,0.08);
+    }
+
+    .cal-grid{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap:8px;
+    }
+    .dow{
+      font-size:11px;
+      color:var(--text-secondary);
+      font-weight:850;
+      letter-spacing:0.12px;
+      padding:0 2px 2px 2px;
+      text-transform:uppercase;
+    }
+    .day{
+      border:1px solid var(--border-subtle);
+      border-radius:12px;
+      background:#fff;
+      min-height:62px;
+      padding:8px 8px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap:6px;
+      position:relative;
+      cursor:default;
+    }
+    .day.muted{
+      opacity:0.55;
+      background: rgba(255,255,255,0.6);
+    }
+    .day .dnum{
+      font-weight:900;
+      font-size:12px;
+      color:var(--text-primary);
+    }
+    .day .cases{
+      font-size:12px;
+      font-weight:850;
+      color:var(--text-primary);
+      letter-spacing:0.1px;
+    }
+    .day .cap{
+      font-size:11px;
+      color:var(--text-secondary);
+      font-weight:700;
+    }
+    .tooltip{
+      position:absolute;
+      left:10px;
+      top:10px;
+      transform: translateY(-8px);
+      background: rgba(43,46,48,0.95);
+      color:#fff;
+      padding:10px 10px;
+      border-radius:12px;
+      font-size:12px;
+      line-height:1.25;
+      width: 220px;
+      z-index:40;
+      display:none;
+      border:1px solid rgba(255,255,255,0.16);
+      box-shadow: 0 18px 38px rgba(43,46,48,0.25);
+    }
+    .tooltip .k{
+      color: rgba(255,255,255,0.78);
+      font-weight:750;
+      font-size:11px;
+      margin-bottom:4px;
+    }
+    .tooltip .v{
+      font-weight:850;
+      margin-bottom:6px;
+    }
+    .day:hover .tooltip{ display:block; }
+
+    /* Inputs / panels */
+    .two-col{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:14px;
+      align-items:start;
+    }
+
+    .form{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      padding:10px;
+      border:1px solid var(--border-subtle);
+      border-radius:14px;
+      background:#fff;
+    }
+    .field .fl{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .field label{
+      font-size:12px;
+      color:var(--text-secondary);
+      font-weight:850;
+      letter-spacing:0.12px;
+    }
+    .field .help{
+      font-size:11px;
+      color:var(--text-secondary);
+      font-weight:700;
+    }
+
+    .seg{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .seg button{
+      border:1px solid var(--border-subtle);
+      background:#fff;
+      padding:8px 10px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:850;
+      color:var(--text-primary);
+      font-size:12px;
+    }
+    .seg button.active{
+      border-color: rgba(184,115,51,0.55);
+      background: rgba(184,115,51,0.12);
+    }
+
+    .banner{
+      border:1px solid var(--border-subtle);
+      background: linear-gradient(180deg, rgba(184,115,51,0.10), rgba(250,250,250,0.9));
+      border-radius: var(--radius);
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .banner .btitle{
+      font-weight:900;
+      letter-spacing:0.2px;
+    }
+    .banner .btext{
+      color:var(--text-secondary);
+      font-weight:650;
+      font-size:13px;
+      line-height:1.35;
+    }
+
+    .recs{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .rec{
+      border:1px solid var(--border-subtle);
+      background:#fff;
+      border-radius:14px;
+      padding:12px;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+    }
+    .rec .icon{
+      width:34px;height:34px;
+      border-radius:12px;
+      border:1px solid rgba(184,115,51,0.35);
+      background: rgba(184,115,51,0.12);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      color:var(--text-primary);
+      flex:0 0 auto;
+    }
+    .rec .txt{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .rec .txt .h{
+      font-weight:900;
+      letter-spacing:0.1px;
+    }
+    .rec .txt .p{
+      color:var(--text-secondary);
+      font-weight:650;
+      font-size:13px;
+      line-height:1.35;
+    }
+
+    .toast{
+      position:fixed;
+      right:18px;
+      bottom:18px;
+      border:1px solid var(--border-subtle);
+      background: rgba(250,250,250,0.96);
+      border-radius:14px;
+      padding:12px 12px;
+      box-shadow: var(--shadow);
+      display:none;
+      max-width: 360px;
+      z-index: 80;
+    }
+    .toast .t{ font-weight:900; margin-bottom:4px; }
+    .toast .s{ font-size:12px; color:var(--text-secondary); font-weight:650; }
+
+    /* Report view */
+    body.report .app{ grid-template-columns: 1fr; }
+    body.report .sidebar{ display:none; }
+    body.report .topbar{ position:sticky; top:0; z-index:20; }
+    body.report .kpis{ grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+    body.report .row2{ grid-template-columns: 1fr; }
+    body.report .two-col{ grid-template-columns: 1fr; }
+
+    /* Responsive */
+    @media (max-width: 1120px){
+      .kpis{ grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+      .row2{ grid-template-columns: 1fr; }
+      .two-col{ grid-template-columns: 1fr; }
+      .sidebar{ position:relative; height:auto; }
+      .app{ grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px){
+      .kpis{ grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+      select, input[type="text"], input[type="number"]{ min-width: 120px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="name"><span class="badge"></span>Disposition Forecast</div>
+        <div class="sub">Capacity planning + surge visibility for cremation operations.</div>
+      </div>
+
+      <div class="nav" id="nav">
+        <button class="active" data-tab="sandbox">
+          <span>Sandbox (Editable)</span>
+          <span class="meta">Inputs</span>
+        </button>
+        <button data-tab="miami">
+          <span>Miami-Dade, FL</span>
+          <span class="meta">Case study</span>
+        </button>
+        <button data-tab="anchorage">
+          <span>Anchorage, AK</span>
+          <span class="meta">Case study</span>
+        </button>
+        <button data-tab="mecklenburg">
+          <span>Mecklenburg, NC</span>
+          <span class="meta">Case study</span>
+        </button>
+        <button data-tab="method">
+          <span>Methodology</span>
+          <span class="meta">Notes</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="topbar-left">
+          <div class="title">
+            <div class="h1" id="viewTitle">Sandbox</div>
+            <div class="h2" id="viewSubtitle">Edit inputs to see capacity + backlog risk update live.</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="control">
+            <label for="rangeSel">Range</label>
+            <select id="rangeSel">
+              <option value="30">Next 30 days</option>
+              <option value="90">Next 90 days</option>
+              <option value="365" selected>Next 1 year</option>
+              <option value="1825">Next 5 years</option>
+            </select>
+          </div>
+
+          <div class="toggle">
+            <div class="lbl">Report View</div>
+            <div class="switch" id="reportSwitch" role="switch" aria-checked="false" tabindex="0"></div>
+          </div>
+
+          <button class="btn" id="downloadBtn">Download JSON</button>
+          <button class="btn primary" id="resetBtn">Reset Sandbox</button>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <section class="grid kpis" id="kpiRow">
+        <div class="card"><div class="kpi">
+          <div class="label">Projected deaths</div>
+          <div class="value" id="kpiDeaths">—</div>
+          <div class="hint" id="kpiDeathsHint">Window total</div>
+        </div></div>
+
+        <div class="card"><div class="kpi">
+          <div class="label">Projected cremations</div>
+          <div class="value" id="kpiCrem">—</div>
+          <div class="hint" id="kpiCremHint">Window total</div>
+        </div></div>
+
+        <div class="card"><div class="kpi">
+          <div class="label">Processing capacity</div>
+          <div class="value" id="kpiCap">—</div>
+          <div class="hint" id="kpiCapHint">Cases / day (effective)</div>
+        </div></div>
+
+        <div class="card"><div class="kpi">
+          <div class="label">Utilization</div>
+          <div class="value" id="kpiUtil">—</div>
+          <div class="hint" id="kpiUtilHint">Target ≤ 80%</div>
+        </div></div>
+
+        <div class="card"><div class="kpi">
+          <div class="label">Backlog risk</div>
+          <div class="value" id="kpiBacklog">—</div>
+          <div class="hint" id="kpiBacklogHint">Days (avg)</div>
+        </div></div>
+
+        <div class="card"><div class="kpi">
+          <div class="label">Primary bottleneck</div>
+          <div class="value" style="font-size:16px;" id="kpiBottle">—</div>
+          <div class="flag" id="kpiBottleFlag">
+            <span class="dot" id="kpiBottleDot"></span><span id="kpiBottleText">—</span>
+          </div>
+        </div></div>
+      </section>
+
+      <!-- Row 2 -->
+      <section class="grid row2">
+        <div class="card">
+          <div class="card-h">
+            <div>
+              <div class="t">Monthly calendar</div>
+              <div class="s">Projected cremations per day + overflow visibility</div>
+            </div>
+            <div class="s" id="calMeta">—</div>
+          </div>
+          <div class="card-b">
+            <div class="cal-wrap">
+              <div class="cal-top">
+                <div class="month" id="calMonthLabel">—</div>
+                <div class="navbtns">
+                  <button class="mini-btn" id="calPrev">Prev</button>
+                  <button class="mini-btn" id="calNext">Next</button>
+                  <button class="mini-btn" id="calToday">Today</button>
+                </div>
+              </div>
+              <div class="cal-grid" id="calDow"></div>
+              <div class="cal-grid" id="calendar"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div>
+              <div class="t">Forecast</div>
+              <div class="s">Demand vs capacity for selected range</div>
+            </div>
+            <div class="s" id="forecastMeta">—</div>
+          </div>
+          <div class="card-b">
+            <canvas id="forecastChart" height="140"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Row 3 -->
+      <section class="grid row3">
+        <div class="card" id="contentCard">
+          <div class="card-h">
+            <div>
+              <div class="t" id="contentTitle">Sandbox</div>
+              <div class="s" id="contentSub">Editable inputs + scenario controls</div>
+            </div>
+            <div id="contentActions"></div>
+          </div>
+          <div class="card-b" id="contentBody">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div>
+              <div class="t">Recommendations</div>
+              <div class="s">Actions triggered by utilization + bottleneck thresholds</div>
+            </div>
+            <div class="s" id="recMeta">—</div>
+          </div>
+          <div class="card-b">
+            <div class="recs" id="recs"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast">
+    <div class="t" id="toastT">Updated</div>
+    <div class="s" id="toastS">—</div>
+  </div>
+
+  <script>
+    // -----------------------------
+    // Utilities
+    // -----------------------------
+    const fmtInt = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString() : "—");
+    const fmt1 = (n) => (Number.isFinite(n) ? (Math.round(n*10)/10).toLocaleString() : "—");
+    const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+    const todayLocal = () => {
+      const d = new Date();
+      d.setHours(0,0,0,0);
+      return d;
+    };
+    const addDays = (d, days) => {
+      const nd = new Date(d);
+      nd.setDate(nd.getDate()+days);
+      return nd;
+    };
+    const ymd = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const da = String(d.getDate()).padStart(2,"0");
+      return `${y}-${m}-${da}`;
+    };
+    const monthName = (m) => ["January","February","March","April","May","June","July","August","September","October","November","December"][m];
+
+    function showToast(title, subtitle){
+      const toast = document.getElementById("toast");
+      document.getElementById("toastT").textContent = title;
+      document.getElementById("toastS").textContent = subtitle;
+      toast.style.display = "block";
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(()=> toast.style.display="none", 2200);
+    }
+
+    // -----------------------------
+    // Data model (example values are plausible placeholders, not authoritative)
+    // -----------------------------
+    const DEFAULTS = {
+      sandbox: {
+        id:"sandbox",
+        mode:"editable",
+        location: { name:"", county:"", state:"", label:"Sandbox" },
+        capacity: {
+          retorts_count: 2,
+          cremations_per_retort_per_day: 2.0,
+          operating_days_per_week: 5,
+          refrigeration_slots: 20,
+          staff_ops: 3
+        },
+        demand: {
+          deaths_per_year: 6500,
+          cremation_rate: 0.60,
+          seasonality_on: true,
+          surge: 0.00
+        },
+        workflow: {
+          avg_authorization_days: 2.0
+        },
+        assumptions: {
+          utilization_target: 0.80,
+          backlog_threshold_days: 3,
+          base_processing_days: 2.5, // days in cold hold + internal handling (baseline)
+          cases_per_staff_per_day: 1.2
+        },
+        notes: {
+          summary_title:"Editable sandbox",
+          summary_text:"Tune capacity and workflow inputs. The model updates KPIs, calendar heat, forecast, and action recommendations live."
+        }
+      },
+      miami: {
+        id:"miami",
+        mode:"readonly",
+        location: { label:"Miami-Dade County, Florida", county:"Miami-Dade", state:"FL" },
+        capacity: {
+          retorts_count: 9,
+          cremations_per_retort_per_day: 2.2,
+          operating_days_per_week: 6,
+          refrigeration_slots: 120,
+          staff_ops: 14
+        },
+        demand: {
+          deaths_per_year: 28000,
+          cremation_rate: 0.67,
+          seasonality_on: true,
+          surge: 0.00
+        },
+        workflow: { avg_authorization_days: 2.4 },
+        assumptions: {
+          utilization_target: 0.80,
+          backlog_threshold_days: 3,
+          base_processing_days: 2.7,
+          cases_per_staff_per_day: 1.15
+        },
+        notes: {
+          summary_title:"Case study: volume + seasonality",
+          summary_text:"High-throughput market with winter seasonality. Bottlenecks tend to appear during sustained peaks when utilization stays elevated for weeks."
+        }
+      },
+      anchorage: {
+        id:"anchorage",
+        mode:"readonly",
+        location: { label:"Anchorage Borough, Alaska", county:"Anchorage", state:"AK" },
+        capacity: {
+          retorts_count: 2,
+          cremations_per_retort_per_day: 1.7,
+          operating_days_per_week: 5,
+          refrigeration_slots: 26,
+          staff_ops: 4
+        },
+        demand: {
+          deaths_per_year: 2600,
+          cremation_rate: 0.58,
+          seasonality_on: true,
+          surge: 0.00
+        },
+        workflow: { avg_authorization_days: 3.6 },
+        assumptions: {
+          utilization_target: 0.80,
+          backlog_threshold_days: 4,
+          base_processing_days: 3.3,
+          cases_per_staff_per_day: 1.05
+        },
+        notes: {
+          summary_title:"Case study: logistics + authorization delay",
+          summary_text:"Lower absolute volume, but workflow delay + transport complexity creates refrigeration pressure. Small increases in authorization time can dominate backlog behavior."
+        }
+      },
+      mecklenburg: {
+        id:"mecklenburg",
+        mode:"readonly",
+        location: { label:"Mecklenburg County, North Carolina", county:"Mecklenburg", state:"NC" },
+        capacity: {
+          retorts_count: 4,
+          cremations_per_retort_per_day: 2.0,
+          operating_days_per_week: 5,
+          refrigeration_slots: 55,
+          staff_ops: 7
+        },
+        demand: {
+          deaths_per_year: 9500,
+          cremation_rate: 0.62,
+          seasonality_on: true,
+          surge: 0.00
+        },
+        workflow: { avg_authorization_days: 2.2 },
+        assumptions: {
+          utilization_target: 0.80,
+          backlog_threshold_days: 3,
+          base_processing_days: 2.8,
+          cases_per_staff_per_day: 1.15
+        },
+        notes: {
+          summary_title:"Case study: growth + staffing constraint",
+          summary_text:"Growing metro demand with steady utilization. Hiring and extended operating days often fix constraints before capital equipment does."
+        }
+      }
+    };
+
+    const STORAGE_KEY = "df_mvp_sandbox_v1";
+
+    // Current app state
+    let currentTab = "sandbox";
+    let rangeDays = 365;
+
+    // Calendar cursor month
+    let calCursor = todayLocal(); // used for month view
+
+    // Chart instance
+    let forecastChart = null;
+
+    // -----------------------------
+    // Model logic
+    // -----------------------------
+    function getSeasonalityMultiplier(monthIdx){
+      // Subtle and plausible pattern: winter higher, summer slightly lower.
+      // (You can replace later with county-specific seasonality.)
+      const multipliers = [1.08,1.05,1.02,1.00,0.98,0.96,0.95,0.96,0.98,1.00,1.03,1.07];
+      return multipliers[monthIdx] ?? 1.0;
+    }
+
+    function effectiveDailyCapacity(s){
+      const retortCap = s.capacity.retorts_count * s.capacity.cremations_per_retort_per_day * (s.capacity.operating_days_per_week / 7);
+      const staffingCap = s.capacity.staff_ops * (s.assumptions.cases_per_staff_per_day ?? 1.1);
+      const avgDaysInHold = (s.assumptions.base_processing_days ?? 2.7) + (s.workflow.avg_authorization_days ?? 2.2);
+      const refrigerationDailyIntakeCap = (s.capacity.refrigeration_slots / Math.max(0.5, avgDaysInHold));
+
+      const constraints = [
+        {key:"retorts", label:"Retort throughput", cap: retortCap},
+        {key:"staffing", label:"Staffing", cap: staffingCap},
+        {key:"refrigeration", label:"Refrigeration", cap: refrigerationDailyIntakeCap}
+      ];
+
+      constraints.sort((a,b)=>a.cap-b.cap);
+      return { effective: constraints[0].cap, constraints };
+    }
+
+    function projectedDailyDemand(s, dateObj){
+      const baseDeathsPerDay = (s.demand.deaths_per_year / 365);
+      const seasonal = s.demand.seasonality_on ? getSeasonalityMultiplier(dateObj.getMonth()) : 1.0;
+      const surge = 1.0 + (s.demand.surge ?? 0.0);
+      const crem = (baseDeathsPerDay * seasonal * surge) * (s.demand.cremation_rate ?? 0.6);
+      return crem;
+    }
+
+    function computeWindow(s, startDate, days){
+      const capInfo = effectiveDailyCapacity(s);
+      const cap = capInfo.effective;
+
+      let totalCrem = 0;
+      let totalDeaths = 0;
+
+      // crude backlog simulation: backlog(t+1) = max(0, backlog(t) + demand - cap)
+      let backlog = 0;
+      let backlogSum = 0;
+
+      for(let i=0;i<days;i++){
+        const d = addDays(startDate, i);
+        const dailyDeaths = (s.demand.deaths_per_year / 365) * (s.demand.seasonality_on ? getSeasonalityMultiplier(d.getMonth()) : 1.0) * (1.0 + (s.demand.surge ?? 0.0));
+        const dailyCrem = dailyDeaths * (s.demand.cremation_rate ?? 0.6);
+
+        totalDeaths += dailyDeaths;
+        totalCrem += dailyCrem;
+
+        backlog = Math.max(0, backlog + dailyCrem - cap);
+        backlogSum += backlog;
+      }
+
+      const avgBacklog = backlogSum / days;      // cases
+      const backlogDays = cap > 0 ? (avgBacklog / cap) : Infinity;
+
+      const avgDailyDemand = totalCrem / days;
+      const utilization = cap > 0 ? (avgDailyDemand / cap) : Infinity;
+
+      const bottleneck = capInfo.constraints[0];
+      const bottleneckDetail = capInfo.constraints;
+
+      return {
+        totalDeaths,
+        totalCrem,
+        capPerDay: cap,
+        utilization,
+        backlogDays,
+        bottleneck,
+        bottleneckDetail,
+        avgDailyDemand
+      };
+    }
+
+    function recommendationEngine(s, windowStats){
+      const recs = [];
+
+      const target = s.assumptions.utilization_target ?? 0.80;
+      const util = windowStats.utilization;
+      const backlog = windowStats.backlogDays;
+      const capInfo = effectiveDailyCapacity(s);
+      const minConstraint = capInfo.constraints[0];
+      const secondConstraint = capInfo.constraints[1];
+
+      // Helper: add a rec
+      const addRec = (icon, h, p) => recs.push({icon, h, p});
+
+      // Primary condition: utilization and backlog
+      if(util > 0.95){
+        addRec("!", "System is operating at redline utilization",
+          "Projected demand is consuming nearly all available throughput. Under sustained surge, this configuration is highly likely to accumulate backlog and extend refrigeration time.");
+      } else if(util > target){
+        addRec("↗", "Utilization exceeds target",
+          `Projected utilization is ${Math.round(util*100)}%. Target is ≤ ${Math.round(target*100)}% to preserve flexibility during spikes.`);
+      } else {
+        addRec("✓", "Capacity is within target band",
+          `Projected utilization is ${Math.round(util*100)}%. This leaves headroom for variability, authorization delays, and weekend clustering.`);
+      }
+
+      if(backlog >= (s.assumptions.backlog_threshold_days ?? 3)){
+        addRec("⌛", "Backlog risk is elevated",
+          `Average backlog risk is estimated at ${fmt1(backlog)} days. Consider adding temporary operating hours/days, outsourcing overflow, or increasing the primary bottleneck constraint.`);
+      } else {
+        addRec("⟂", "Backlog risk is manageable",
+          `Estimated backlog risk is ${fmt1(backlog)} days on average. Monitor holiday + seasonal peaks where daily clustering can still create short-term overflow.`);
+      }
+
+      // Bottleneck-specific actions
+      if(minConstraint.key === "retorts"){
+        // If retorts bottleneck, offer options: add retort, increase operating days, increase per-retort cycles
+        addRec("⚙", "Primary bottleneck: retort throughput",
+          "Increase retort availability (additional retort), extend operating days during peak months, or improve cycle scheduling to increase cases per retort per day.");
+      } else if(minConstraint.key === "staffing"){
+        const needed = Math.max(1, Math.ceil((windowStats.avgDailyDemand - capInfo.constraints[0].cap) / (s.assumptions.cases_per_staff_per_day ?? 1.1)));
+        addRec("👥", "Primary bottleneck: staffing",
+          `Throughput is limited by operator coverage. A practical first move is +${needed} ops (or equivalent shift coverage) before capital equipment.`);
+      } else if(minConstraint.key === "refrigeration"){
+        // refrigeration slots: add slots or reduce days in hold via authorization process improvement
+        addRec("❄", "Primary bottleneck: refrigeration / hold time",
+          "Overflow is likely to show up first as refrigeration pressure. Increase refrigeration slots, reduce authorization latency, or add routing options to move cases faster through the chain.");
+      }
+
+      // Authorization insight (small change, big impact)
+      const auth = s.workflow.avg_authorization_days ?? 2.2;
+      if(auth >= 3.0){
+        addRec("⛓", "Authorization delay is a multiplier on backlog",
+          "When authorization takes longer, cases stay in refrigeration longer, shrinking effective intake capacity. Reducing authorization delay often outperforms adding hardware in the short term.");
+      }
+
+      // “Second constraint” nudge
+      if(secondConstraint){
+        addRec("◎", "Second constraint to watch",
+          `${secondConstraint.label} is the next limiter after the primary bottleneck. If you address the first constraint, this one becomes your new ceiling.`);
+      }
+
+      // “When to add retort” rough trigger (simple: if utilization over target, compute delta capacity needed)
+      if(util > target){
+        const capNow = windowStats.capPerDay;
+        const needCap = windowStats.avgDailyDemand / target;
+        const delta = Math.max(0, needCap - capNow);
+
+        // Translate delta into the most sensible lever for the detected bottleneck
+        if(minConstraint.key === "retorts"){
+          const perRetort = s.capacity.cremations_per_retort_per_day * (s.capacity.operating_days_per_week/7);
+          const addRetorts = perRetort > 0 ? Math.ceil(delta / perRetort) : 1;
+          addRec("＋", "Add retort capacity to restore headroom",
+            `Estimated additional throughput needed: ~${fmt1(delta)} cases/day. That maps to about +${addRetorts} retort(s) at current schedule assumptions.`);
+        } else if(minConstraint.key === "staffing"){
+          const perStaff = (s.assumptions.cases_per_staff_per_day ?? 1.1);
+          const addStaff = perStaff > 0 ? Math.ceil(delta / perStaff) : 1;
+          addRec("＋", "Add operator coverage to restore headroom",
+            `Estimated additional throughput needed: ~${fmt1(delta)} cases/day. That maps to about +${addStaff} ops (or equivalent shift coverage).`);
+        } else if(minConstraint.key === "refrigeration"){
+          const avgHold = (s.assumptions.base_processing_days ?? 2.7) + (s.workflow.avg_authorization_days ?? 2.2);
+          const addSlots = Math.ceil(delta * Math.max(1, avgHold));
+          addRec("＋", "Increase refrigeration / reduce hold time",
+            `To cover ~${fmt1(delta)} extra cases/day at ~${fmt1(avgHold)} days average hold, you’d need roughly +${fmtInt(addSlots)} refrigeration slot-days (add slots or reduce days-in-hold).`);
+        }
+      }
+
+      return recs.slice(0, 8);
+    }
+
+    // -----------------------------
+    // UI Rendering
+    // -----------------------------
+    function setTab(tabId){
+      currentTab = tabId;
+
+      // nav highlighting
+      document.querySelectorAll("#nav button").forEach(btn=>{
+        btn.classList.toggle("active", btn.dataset.tab === tabId);
+      });
+
+      const s = getActiveState();
+
+      // header text
+      document.getElementById("viewTitle").textContent = tabId === "sandbox" ? "Sandbox" : s.location.label;
+      document.getElementById("viewSubtitle").textContent =
+        tabId === "sandbox"
+          ? "Edit inputs to see capacity + backlog risk update live."
+          : "Read-only case study. Copy to sandbox to modify.";
+
+      document.getElementById("contentTitle").textContent = tabId === "sandbox" ? "Sandbox" : s.location.label;
+      document.getElementById("contentSub").textContent = tabId === "sandbox"
+        ? "Editable inputs + scenario controls"
+        : "Case study inputs (read-only)";
+
+      // render tab body
+      renderTabBody();
+
+      // update dashboard
+      recalcAndRender(false);
+
+      showToast("View updated", tabId === "sandbox" ? "Sandbox ready." : `Loaded ${s.location.label}.`);
+    }
+
+    function getActiveState(){
+      if(currentTab === "sandbox") return appState.sandbox;
+      return appState.caseStudies[currentTab];
+    }
+
+    function renderTabBody(){
+      const body = document.getElementById("contentBody");
+      const actions = document.getElementById("contentActions");
+      body.innerHTML = "";
+      actions.innerHTML = "";
+
+      const s = getActiveState();
+
+      if(currentTab === "method"){
+        body.appendChild(renderMethodology());
+        return;
+      }
+
+      if(currentTab === "sandbox"){
+        body.appendChild(renderSandbox(s));
+        return;
+      }
+
+      // case study view
+      body.appendChild(renderCaseStudy(s));
+      const btn = document.createElement("button");
+      btn.className = "btn primary";
+      btn.textContent = "Copy to Sandbox";
+      btn.onclick = () => {
+        // copy case study into sandbox (but keep sandbox id/mode)
+        const clone = JSON.parse(JSON.stringify(s));
+        clone.id = "sandbox";
+        clone.mode = "editable";
+        clone.location = { name:"", county: s.location.county, state:s.location.state, label:"Sandbox" };
+        appState.sandbox = clone;
+        persistSandbox();
+        setTab("sandbox");
+        showToast("Copied", "Case study copied to sandbox for editing.");
+      };
+      actions.appendChild(btn);
+
+      const dl = document.createElement("button");
+      dl.className = "btn";
+      dl.textContent = "Download JSON";
+      dl.onclick = downloadActiveJSON;
+      actions.appendChild(dl);
+
+      // banner
+      const banner = document.createElement("div");
+      banner.className = "banner";
+      banner.innerHTML = `
+        <div class="btitle">${escapeHtml(s.notes.summary_title)}</div>
+        <div class="btext">${escapeHtml(s.notes.summary_text)}</div>
+      `;
+      body.prepend(banner);
+    }
+
+    function renderSandbox(s){
+      const wrap = document.createElement("div");
+      wrap.className = "two-col";
+
+      // left: form
+      const left = document.createElement("div");
+      left.className = "form";
+
+      // quick banner
+      const banner = document.createElement("div");
+      banner.className = "banner";
+      banner.innerHTML = `
+        <div class="btitle">${escapeHtml(s.notes.summary_title)}</div>
+        <div class="btext">${escapeHtml(s.notes.summary_text)}</div>
+      `;
+      left.appendChild(banner);
+
+      left.appendChild(fieldText("County / City (label)", "location_label", s.location.label || "Sandbox", "Shown in header + report view"));
+      left.appendChild(fieldNum("Retorts (count)", "retorts_count", s.capacity.retorts_count, 0, 60, 1));
+      left.appendChild(fieldNum("Avg cremations per retort per day", "crem_per_retort", s.capacity.cremations_per_retort_per_day, 0, 10, 0.1));
+      left.appendChild(fieldNum("Operating days per week", "op_days", s.capacity.operating_days_per_week, 0, 7, 1));
+      left.appendChild(fieldNum("Refrigeration slots", "refrig_slots", s.capacity.refrigeration_slots, 0, 999, 1));
+      left.appendChild(fieldNum("Ops staff (count)", "staff_ops", s.capacity.staff_ops, 0, 200, 1));
+      left.appendChild(fieldNum("Deaths per year (baseline)", "deaths_year", s.demand.deaths_per_year, 0, 1000000, 50));
+      left.appendChild(fieldNum("Cremation rate (%)", "crem_rate", Math.round((s.demand.cremation_rate||0.6)*100), 0, 100, 1));
+      left.appendChild(fieldNum("Avg authorization days", "auth_days", s.workflow.avg_authorization_days, 0, 12, 0.1));
+
+      // toggles: seasonality, surge
+      const season = document.createElement("div");
+      season.className = "field";
+      season.innerHTML = `
+        <div class="fl">
+          <label>Seasonality</label>
+          <div class="help">Apply monthly multipliers to demand</div>
+        </div>
+        <div class="seg" id="segSeason">
+          <button data-val="on">On</button>
+          <button data-val="off">Off</button>
+        </div>
+      `;
+      left.appendChild(season);
+
+      const surge = document.createElement("div");
+      surge.className = "field";
+      surge.innerHTML = `
+        <div class="fl">
+          <label>Surge scenario</label>
+          <div class="help">Scale demand above baseline</div>
+        </div>
+        <div class="seg" id="segSurge">
+          <button data-val="0">None</button>
+          <button data-val="0.15">+15%</button>
+          <button data-val="0.30">+30%</button>
+          <button data-val="0.50">+50%</button>
+        </div>
+      `;
+      left.appendChild(surge);
+
+      // right: contextual notes + quick math
+      const right = document.createElement("div");
+      right.innerHTML = `
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-h">
+            <div>
+              <div class="t">How this MVP thinks</div>
+              <div class="s">Simple constraints model (retorts, staffing, refrigeration)</div>
+            </div>
+          </div>
+          <div class="card-b" style="color:var(--text-secondary); font-weight:650; line-height:1.45; font-size:13px;">
+            <div style="margin-bottom:10px;">
+              <span style="font-weight:900; color:var(--text-primary);">Effective capacity</span> is the minimum of:
+              retort throughput, staffing throughput, and refrigeration intake capacity.
+            </div>
+            <div style="margin-bottom:10px;">
+              Refrigeration capacity depends on <span style="font-weight:900; color:var(--text-primary);">days-in-hold</span>,
+              modeled as baseline handling + authorization delay.
+            </div>
+            <div>
+              This is an MVP meant for planning and scenario testing. Swap in real datasets later.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div>
+              <div class="t">Quick actions</div>
+              <div class="s">Make this feel like a product</div>
+            </div>
+          </div>
+          <div class="card-b">
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn" id="btnSaveSnap">Save snapshot</button>
+              <button class="btn" id="btnLoadSnap">Load snapshot</button>
+              <button class="btn" id="btnReport">Toggle report view</button>
+            </div>
+            <div style="margin-top:10px; color:var(--text-secondary); font-weight:650; font-size:12px; line-height:1.35;">
+              Snapshots are stored locally (browser storage). Report view is optimized for screenshots and pitch decks.
+            </div>
+          </div>
+        </div>
+      `;
+
+      wrap.appendChild(left);
+      wrap.appendChild(right);
+
+      // wire seg buttons
+      setTimeout(()=>{
+        const segSeason = document.querySelector("#segSeason");
+        const segSurge = document.querySelector("#segSurge");
+
+        // seasonality current
+        segSeason.querySelectorAll("button").forEach(b=>{
+          const on = (s.demand.seasonality_on ? "on" : "off");
+          b.classList.toggle("active", b.dataset.val === on);
+          b.onclick = () => {
+            s.demand.seasonality_on = (b.dataset.val === "on");
+            segSeason.querySelectorAll("button").forEach(bb=>bb.classList.toggle("active", bb===b));
+            persistSandbox();
+            recalcAndRender(true);
+          };
+        });
+
+        // surge current
+        segSurge.querySelectorAll("button").forEach(b=>{
+          const cur = String(s.demand.surge ?? 0);
+          b.classList.toggle("active", b.dataset.val === cur);
+          b.onclick = () => {
+            s.demand.surge = parseFloat(b.dataset.val);
+            segSurge.querySelectorAll("button").forEach(bb=>bb.classList.toggle("active", bb===b));
+            persistSandbox();
+            recalcAndRender(true);
+          };
+        });
+
+        // quick actions
+        const btnSave = document.getElementById("btnSaveSnap");
+        const btnLoad = document.getElementById("btnLoadSnap");
+        const btnRep = document.getElementById("btnReport");
+
+        if(btnSave) btnSave.onclick = () => {
+          localStorage.setItem("df_mvp_snapshot", JSON.stringify(appState.sandbox));
+          showToast("Snapshot saved", "Stored in browser storage.");
+        };
+        if(btnLoad) btnLoad.onclick = () => {
+          const raw = localStorage.getItem("df_mvp_snapshot");
+          if(!raw){ showToast("No snapshot found", "Save one first."); return; }
+          try{
+            const snap = JSON.parse(raw);
+            snap.id = "sandbox"; snap.mode = "editable";
+            appState.sandbox = snap;
+            persistSandbox();
+            showToast("Snapshot loaded", "Sandbox restored.");
+            setTab("sandbox");
+          }catch(e){
+            showToast("Snapshot error", "Could not parse stored snapshot.");
+          }
+        };
+        if(btnRep) btnRep.onclick = toggleReportView;
+      }, 0);
+
+      return wrap;
+    }
+
+    function renderCaseStudy(s){
+      const wrap = document.createElement("div");
+      wrap.className = "two-col";
+
+      const left = document.createElement("div");
+      left.className = "form";
+
+      // read-only list of key values
+      left.appendChild(readonlyField("Location", s.location.label));
+      left.appendChild(readonlyField("Retorts", fmtInt(s.capacity.retorts_count)));
+      left.appendChild(readonlyField("Cremations / retort / day", fmt1(s.capacity.cremations_per_retort_per_day)));
+      left.appendChild(readonlyField("Operating days / week", fmtInt(s.capacity.operating_days_per_week)));
+      left.appendChild(readonlyField("Refrigeration slots", fmtInt(s.capacity.refrigeration_slots)));
+      left.appendChild(readonlyField("Ops staff", fmtInt(s.capacity.staff_ops)));
+      left.appendChild(readonlyField("Deaths / year (baseline)", fmtInt(s.demand.deaths_per_year)));
+      left.appendChild(readonlyField("Cremation rate", `${fmtInt((s.demand.cremation_rate||0)*100)}%`));
+      left.appendChild(readonlyField("Avg authorization days", fmt1(s.workflow.avg_authorization_days)));
+      left.appendChild(readonlyField("Seasonality", s.demand.seasonality_on ? "On" : "Off"));
+
+      const right = document.createElement("div");
+      right.innerHTML = `
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-h">
+            <div>
+              <div class="t">What breaks first</div>
+              <div class="s">Derived from constraint ceilings</div>
+            </div>
+          </div>
+          <div class="card-b" style="color:var(--text-secondary); font-weight:650; line-height:1.45; font-size:13px;">
+            <div id="breaksFirst">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div>
+              <div class="t">Why this case exists</div>
+              <div class="s">Narrative for demos</div>
+            </div>
+          </div>
+          <div class="card-b" style="color:var(--text-secondary); font-weight:650; line-height:1.45; font-size:13px;">
+            ${escapeHtml(s.notes.summary_text)}
+          </div>
+        </div>
+      `;
+
+      wrap.appendChild(left);
+      wrap.appendChild(right);
+
+      // populate "breaks first" after render
+      setTimeout(()=>{
+        const capInfo = effectiveDailyCapacity(s);
+        const b = capInfo.constraints[0];
+        const msg = `Primary bottleneck is <span style="font-weight:900; color:var(--text-primary);">${escapeHtml(b.label)}</span>.
+          This ceiling sets effective daily throughput at approximately <span style="font-weight:900; color:var(--text-primary);">${fmt1(b.cap)}</span> cases/day under current assumptions.`;
+        const el = document.getElementById("breaksFirst");
+        if(el) el.innerHTML = msg;
+      }, 0);
+
+      return wrap;
+    }
+
+    function renderMethodology(){
+      const wrap = document.createElement("div");
+
+      const block = document.createElement("div");
+      block.className = "banner";
+      block.innerHTML = `
+        <div class="btitle">Methodology</div>
+        <div class="btext">
+          This MVP is a planning tool. It uses a simple constraints model to convert baseline deaths into projected cremation demand,
+          then compares demand against effective throughput ceilings to estimate utilization and backlog risk.
+        </div>
+      `;
+      wrap.appendChild(block);
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-h">
+          <div>
+            <div class="t">Definitions</div>
+            <div class="s">What the numbers mean</div>
+          </div>
+        </div>
+        <div class="card-b" style="color:var(--text-secondary); font-weight:650; line-height:1.55; font-size:13px;">
+          <div style="margin-bottom:10px;"><span style="font-weight:900; color:var(--text-primary);">Demand</span> = deaths/day × cremation rate × (seasonality) × (surge).</div>
+          <div style="margin-bottom:10px;"><span style="font-weight:900; color:var(--text-primary);">Retort throughput</span> = retorts × cremations/retort/day × operating-days/7.</div>
+          <div style="margin-bottom:10px;"><span style="font-weight:900; color:var(--text-primary);">Staffing throughput</span> = ops staff × cases/staff/day (assumption).</div>
+          <div style="margin-bottom:10px;"><span style="font-weight:900; color:var(--text-primary);">Refrigeration intake capacity</span> ≈ refrigeration slots ÷ average days-in-hold.</div>
+          <div><span style="font-weight:900; color:var(--text-primary);">Effective capacity</span> = minimum of the above constraints.</div>
+          <hr style="border:none;border-top:1px solid var(--border-subtle); margin:14px 0;">
+          <div style="margin-bottom:10px;"><span style="font-weight:900; color:var(--text-primary);">Backlog risk</span> is estimated via a simple daily accumulation model: backlog(t+1) = max(0, backlog(t) + demand − capacity).</div>
+          <div><span style="font-weight:900; color:var(--text-primary);">Utilization</span> = average daily demand ÷ capacity. Target ≤ 80% preserves headroom.</div>
+        </div>
+      `;
+      wrap.appendChild(card);
+
+      const card2 = document.createElement("div");
+      card2.className = "card";
+      card2.style.marginTop = "14px";
+      card2.innerHTML = `
+        <div class="card-h">
+          <div>
+            <div class="t">Data sources (placeholder)</div>
+            <div class="s">Swap in real feeds later</div>
+          </div>
+        </div>
+        <div class="card-b" style="color:var(--text-secondary); font-weight:650; line-height:1.55; font-size:13px;">
+          <div style="margin-bottom:10px;">• County-level mortality estimates (e.g., CDC-derived) — baseline deaths/year.</div>
+          <div style="margin-bottom:10px;">• Cremation rate by region — used as a multiplier.</div>
+          <div style="margin-bottom:10px;">• Facility capacity and staffing — user-provided or directory-fed.</div>
+          <div style="margin-bottom:10px;">• Workflow latency — authorization + chain-of-custody steps.</div>
+          <hr style="border:none;border-top:1px solid var(--border-subtle); margin:14px 0;">
+          <div style="color:var(--text-primary); font-weight:900;">Limitations</div>
+          <div style="margin-top:6px;">
+            This MVP simplifies reality. It does not model case-mix complexity, ME/Coroner holds, weekend clustering, transport disruptions,
+            or facility-to-facility routing. It’s designed to make constraints legible and actionable, fast.
+          </div>
+        </div>
+      `;
+      wrap.appendChild(card2);
+
+      return wrap;
+    }
+
+    function fieldText(label, key, value, help){
+      const f = document.createElement("div");
+      f.className = "field";
+      f.innerHTML = `
+        <div class="fl">
+          <label>${escapeHtml(label)}</label>
+          <div class="help">${escapeHtml(help || "")}</div>
+        </div>
+        <input type="text" data-key="${escapeHtml(key)}" value="${escapeHtml(String(value ?? ""))}">
+      `;
+      const input = f.querySelector("input");
+      input.addEventListener("input", () => {
+        const s = appState.sandbox;
+        const v = input.value;
+        if(key === "location_label") s.location.label = v || "Sandbox";
+        persistSandbox();
+        recalcAndRender(false);
+      });
+      return f;
+    }
+
+    function fieldNum(label, key, value, min, max, step){
+      const f = document.createElement("div");
+      f.className = "field";
+      f.innerHTML = `
+        <div class="fl">
+          <label>${escapeHtml(label)}</label>
+          <div class="help">Min ${min} • Max ${max}</div>
+        </div>
+        <input type="number" data-key="${escapeHtml(key)}" value="${escapeHtml(String(value ?? 0))}" min="${min}" max="${max}" step="${step}">
+      `;
+      const input = f.querySelector("input");
+      input.addEventListener("input", () => {
+        const s = appState.sandbox;
+        const raw = parseFloat(input.value);
+        const v = Number.isFinite(raw) ? raw : 0;
+
+        // route key
+        switch(key){
+          case "retorts_count": s.capacity.retorts_count = clamp(v, min, max); break;
+          case "crem_per_retort": s.capacity.cremations_per_retort_per_day = clamp(v, min, max); break;
+          case "op_days": s.capacity.operating_days_per_week = clamp(v, min, max); break;
+          case "refrig_slots": s.capacity.refrigeration_slots = clamp(v, min, max); break;
+          case "staff_ops": s.capacity.staff_ops = clamp(v, min, max); break;
+          case "deaths_year": s.demand.deaths_per_year = clamp(v, min, max); break;
+          case "crem_rate": s.demand.cremation_rate = clamp(v, 0, 100) / 100; break;
+          case "auth_days": s.workflow.avg_authorization_days = clamp(v, min, max); break;
+        }
+
+        persistSandbox();
+        recalcAndRender(false);
+      });
+      return f;
+    }
+
+    function readonlyField(label, value){
+      const f = document.createElement("div");
+      f.className = "field";
+      f.innerHTML = `
+        <div class="fl">
+          <label>${escapeHtml(label)}</label>
+          <div class="help">Read-only</div>
+        </div>
+        <div style="font-weight:900; padding:8px 2px; color:var(--text-primary);">${escapeHtml(String(value))}</div>
+      `;
+      return f;
+    }
+
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, (c)=>({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[c]));
+    }
+
+    // -----------------------------
+    // Calendar rendering
+    // -----------------------------
+    function renderCalendar(s){
+      const dow = document.getElementById("calDow");
+      const cal = document.getElementById("calendar");
+      dow.innerHTML = "";
+      cal.innerHTML = "";
+
+      const dows = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+      dows.forEach(d=>{
+        const el = document.createElement("div");
+        el.className = "dow";
+        el.textContent = d;
+        dow.appendChild(el);
+      });
+
+      const cursor = new Date(calCursor);
+      cursor.setDate(1);
+      const startDay = cursor.getDay();
+      const start = addDays(cursor, -startDay);
+
+      const monthLabel = `${monthName(calCursor.getMonth())} ${calCursor.getFullYear()}`;
+      document.getElementById("calMonthLabel").textContent = monthLabel;
+
+      // compute intensity scale for this month
+      const monthStart = new Date(calCursor.getFullYear(), calCursor.getMonth(), 1);
+      const monthEnd = new Date(calCursor.getFullYear(), calCursor.getMonth()+1, 0);
+      const daysInMonth = monthEnd.getDate();
+
+      let maxDaily = 0;
+      for(let i=0;i<daysInMonth;i++){
+        const d = new Date(calCursor.getFullYear(), calCursor.getMonth(), i+1);
+        maxDaily = Math.max(maxDaily, projectedDailyDemand(s,d));
+      }
+      maxDaily = Math.max(1, maxDaily);
+
+      const cap = effectiveDailyCapacity(s).effective;
+      document.getElementById("calMeta").textContent = `Capacity ~${fmt1(cap)} / day`;
+
+      for(let i=0;i<42;i++){
+        const date = addDays(start, i);
+        const inMonth = date.getMonth() === calCursor.getMonth();
+        const demand = projectedDailyDemand(s, date);
+        const overflow = demand > cap + 1e-9;
+
+        // heat: copper tint, intensity based on demand vs maxDaily
+        const intensity = clamp(demand / maxDaily, 0, 1);
+        const bg = `rgba(184,115,51, ${0.06 + intensity*0.18})`;
+        const border = overflow ? `rgba(194,77,58,0.55)` : `rgba(209,211,212,1)`;
+
+        const day = document.createElement("div");
+        day.className = "day" + (inMonth ? "" : " muted");
+        day.style.background = bg;
+        day.style.borderColor = border;
+
+        day.innerHTML = `
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <div class="dnum">${date.getDate()}</div>
+            <div style="font-size:11px; font-weight:900; color:${overflow ? "var(--danger)" : "var(--text-secondary)"};">
+              ${overflow ? "Overflow" : "OK"}
+            </div>
+          </div>
+          <div>
+            <div class="cases">${fmt1(demand)} cases</div>
+            <div class="cap">cap ${fmt1(cap)}</div>
+          </div>
+          <div class="tooltip">
+            <div class="k">${ymd(date)}</div>
+            <div class="v">Projected cremations: ${fmt1(demand)}</div>
+            <div class="v">Effective capacity: ${fmt1(cap)}</div>
+            <div class="v">Overflow: ${overflow ? "Yes" : "No"}</div>
+            <div class="k">Notes</div>
+            <div style="color:rgba(255,255,255,0.8); font-weight:700;">
+              Seasonality ${s.demand.seasonality_on ? "on" : "off"} • Surge ${(Math.round((s.demand.surge??0)*100))}%
+            </div>
+          </div>
+        `;
+        cal.appendChild(day);
+      }
+    }
+
+    // -----------------------------
+    // Forecast chart
+    // -----------------------------
+    function renderForecast(s, startDate, days){
+      // Aggregate into buckets to keep chart readable
+      let bucket = 1;
+      if(days > 90) bucket = 7;          // weekly
+      if(days > 365) bucket = 30;        // monthly-ish
+
+      const labels = [];
+      const R = [];
+      const C = [];
+
+      const cap = effectiveDailyCapacity(s).effective;
+
+      for(let i=0;i<days;i+=bucket){
+        const d0 = addDays(startDate, i);
+        const d1 = Math.min(days, i+bucket);
+
+        let sum = 0;
+        for(let j=i;j<d1;j++){
+          sum += projectedDailyDemand(s, addDays(startDate, j));
+        }
+        const avg = sum / (d1 - i);
+        labels.push(days > 365 ? `${monthName(d0.getMonth()).slice(0,3)} ${String(d0.getFullYear()).slice(2)}` : ymd(d0));
+        R.push(avg);
+        C.push(cap);
+      }
+
+      const overflowPoints = R.map((v, idx) => v > C[idx] ? v : null);
+
+      const ctx = document.getElementById("forecastChart");
+      if(forecastChart) forecastChart.destroy();
+
+      forecastChart = new Chart(ctx, {
+        type:"line",
+        data:{
+          labels,
+          datasets:[
+            {
+              label:"Projected demand (avg/day)",
+              data:R,
+              borderWidth:2,
+              pointRadius:0,
+              tension:0.25
+            },
+            {
+              label:"Effective capacity (avg/day)",
+              data:C,
+              borderWidth:2,
+              pointRadius:0,
+              borderDash:[6,6],
+              tension:0.1
+            },
+            {
+              label:"Overflow zone",
+              data:overflowPoints,
+              borderWidth:0,
+              pointRadius:0,
+              fill: true
+            }
+          ]
+        },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          plugins:{
+            legend:{
+              labels:{ boxWidth:10, boxHeight:10, color:getComputedStyle(document.documentElement).getPropertyValue('--text-secondary') }
+            },
+            tooltip:{
+              callbacks:{
+                label: (ctx)=>{
+                  const v = ctx.parsed.y;
+                  if(v === null || v === undefined) return null;
+                  return `${ctx.dataset.label}: ${fmt1(v)}`;
+                }
+              }
+            }
+          },
+          scales:{
+            x:{
+              ticks:{ maxTicksLimit: 8, color:getComputedStyle(document.documentElement).getPropertyValue('--text-secondary') },
+              grid:{ color:"rgba(209,211,212,0.55)" }
+            },
+            y:{
+              ticks:{ color:getComputedStyle(document.documentElement).getPropertyValue('--text-secondary') },
+              grid:{ color:"rgba(209,211,212,0.55)" }
+            }
+          },
+          elements:{
+            line:{ borderColor:"rgba(184,115,51,0.95)" },
+          }
+        }
+      });
+
+      // Re-style datasets with theme colors (without using blue/purple/black)
+      forecastChart.data.datasets[0].borderColor = "rgba(184,115,51,0.95)";       // copper
+      forecastChart.data.datasets[0].backgroundColor = "rgba(184,115,51,0.08)";
+      forecastChart.data.datasets[1].borderColor = "rgba(90,95,99,0.85)";         // graphite
+      forecastChart.data.datasets[1].backgroundColor = "rgba(90,95,99,0.06)";
+      forecastChart.data.datasets[2].backgroundColor = "rgba(194,77,58,0.10)";    // danger shade
+      forecastChart.data.datasets[2].borderColor = "rgba(194,77,58,0.00)";
+      forecastChart.update();
+
+      document.getElementById("forecastMeta").textContent = `Bucket: ${bucket === 1 ? "daily" : (bucket === 7 ? "weekly" : "monthly-ish")} • cap ~${fmt1(cap)}/day`;
+    }
+
+    // -----------------------------
+    // KPIs + recs rendering
+    // -----------------------------
+    function renderKPIs(s, stats){
+      document.getElementById("kpiDeaths").textContent = fmtInt(stats.totalDeaths);
+      document.getElementById("kpiCrem").textContent = fmtInt(stats.totalCrem);
+      document.getElementById("kpiCap").textContent = fmt1(stats.capPerDay);
+      document.getElementById("kpiUtil").textContent = `${Math.round(stats.utilization*100)}%`;
+      document.getElementById("kpiBacklog").textContent = fmt1(stats.backlogDays);
+
+      const b = stats.bottleneck;
+      document.getElementById("kpiBottle").textContent = b.label;
+      const dot = document.getElementById("kpiBottleDot");
+      const bottleText = document.getElementById("kpiBottleText");
+
+      const warn = stats.utilization > 0.95 || stats.backlogDays > (s.assumptions.backlog_threshold_days ?? 3);
+      dot.classList.toggle("warn", warn);
+      bottleText.textContent = warn ? "At-risk constraint" : "Current constraint";
+
+      document.getElementById("kpiDeathsHint").textContent = `${rangeDays} day window`;
+      document.getElementById("kpiCremHint").textContent = `Cremation rate ${(Math.round((s.demand.cremation_rate??0)*100))}%`;
+      document.getElementById("kpiCapHint").textContent = `Min(retorts, staffing, refrigeration)`;
+      document.getElementById("kpiUtilHint").textContent = `Target ≤ ${Math.round((s.assumptions.utilization_target??0.8)*100)}%`;
+      document.getElementById("kpiBacklogHint").textContent = `Threshold ${(s.assumptions.backlog_threshold_days??3)} days`;
+    }
+
+    function renderRecs(s, stats){
+      const recs = recommendationEngine(s, stats);
+      const wrap = document.getElementById("recs");
+      wrap.innerHTML = "";
+
+      recs.forEach(r=>{
+        const el = document.createElement("div");
+        el.className = "rec";
+        el.innerHTML = `
+          <div class="icon">${escapeHtml(r.icon)}</div>
+          <div class="txt">
+            <div class="h">${escapeHtml(r.h)}</div>
+            <div class="p">${escapeHtml(r.p)}</div>
+          </div>
+        `;
+        wrap.appendChild(el);
+      });
+
+      document.getElementById("recMeta").textContent = `Generated from utilization + constraint thresholds`;
+    }
+
+    // -----------------------------
+    // App state init
+    // -----------------------------
+    const appState = {
+      sandbox: null,
+      caseStudies: {
+        miami: DEFAULTS.miami,
+        anchorage: DEFAULTS.anchorage,
+        mecklenburg: DEFAULTS.mecklenburg
+      }
+    };
+
+    function loadSandbox(){
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw){
+        appState.sandbox = JSON.parse(JSON.stringify(DEFAULTS.sandbox));
+        appState.sandbox.location.label = "Sandbox";
+        return;
+      }
+      try{
+        const s = JSON.parse(raw);
+        // normalize
+        s.id = "sandbox";
+        s.mode = "editable";
+        if(!s.location) s.location = {label:"Sandbox"};
+        if(!s.location.label) s.location.label = "Sandbox";
+        appState.sandbox = s;
+      }catch(e){
+        appState.sandbox = JSON.parse(JSON.stringify(DEFAULTS.sandbox));
+      }
+    }
+
+    function persistSandbox(){
+      try{
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState.sandbox));
+      }catch(e){
+        // ignore
+      }
+    }
+
+    // -----------------------------
+    // Actions
+    // -----------------------------
+    function toggleReportView(){
+      const sw = document.getElementById("reportSwitch");
+      const on = document.body.classList.toggle("report");
+      sw.classList.toggle("on", on);
+      sw.setAttribute("aria-checked", on ? "true" : "false");
+      showToast(on ? "Report view on" : "Report view off", "Layout optimized for screenshots.");
+    }
+
+    function downloadActiveJSON(){
+      const s = getActiveState();
+      const blob = new Blob([JSON.stringify(s, null, 2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `disposition-forecast_${currentTab}_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast("Download started", "Exported current view as JSON.");
+    }
+
+    function resetSandbox(){
+      appState.sandbox = JSON.parse(JSON.stringify(DEFAULTS.sandbox));
+      persistSandbox();
+      setTab("sandbox");
+      showToast("Sandbox reset", "Defaults restored.");
+    }
+
+    // -----------------------------
+    // Main recompute / render
+    // -----------------------------
+    function recalcAndRender(showTickToast){
+      const s = getActiveState();
+      const start = todayLocal();
+      const stats = computeWindow(s, start, rangeDays);
+
+      renderKPIs(s, stats);
+      renderCalendar(s);
+      renderForecast(s, start, rangeDays);
+      renderRecs(s, stats);
+
+      if(showTickToast){
+        showToast("Updated forecast", `${currentTab === "sandbox" ? "Sandbox" : s.location.label} • ${rangeDays} day view`);
+      }
+    }
+
+    // -----------------------------
+    // Wire UI
+    // -----------------------------
+    function init(){
+      loadSandbox();
+
+      // nav events
+      document.querySelectorAll("#nav button").forEach(btn=>{
+        btn.addEventListener("click", ()=> setTab(btn.dataset.tab));
+      });
+
+      // range
+      const rangeSel = document.getElementById("rangeSel");
+      rangeSel.addEventListener("change", ()=>{
+        rangeDays = parseInt(rangeSel.value, 10);
+        recalcAndRender(true);
+      });
+
+      // report switch
+      const sw = document.getElementById("reportSwitch");
+      sw.addEventListener("click", toggleReportView);
+      sw.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter" || e.key === " "){
+          e.preventDefault();
+          toggleReportView();
+        }
+      });
+
+      // buttons
+      document.getElementById("downloadBtn").addEventListener("click", downloadActiveJSON);
+      document.getElementById("resetBtn").addEventListener("click", resetSandbox);
+
+      // calendar nav
+      document.getElementById("calPrev").addEventListener("click", ()=>{
+        calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()-1, 1);
+        recalcAndRender(false);
+      });
+      document.getElementById("calNext").addEventListener("click", ()=>{
+        calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()+1, 1);
+        recalcAndRender(false);
+      });
+      document.getElementById("calToday").addEventListener("click", ()=>{
+        calCursor = todayLocal();
+        recalcAndRender(false);
+      });
+
+      // initialize to sandbox
+      setTab("sandbox");
+    }
+
+    init();
+  </script>
+</body>
+</html>
