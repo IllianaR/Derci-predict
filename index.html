@@ -89,7 +89,44 @@
     }
 
     .topbar {
+      position: relative;
+      overflow: hidden;
       padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .glass-filter,
+    .glass-overlay,
+    .glass-specular {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .glass-filter {
+      backdrop-filter: blur(8px) saturate(1.08);
+      filter: url(#glass-distortion);
+      opacity: 0.25;
+    }
+
+    .glass-overlay {
+      background: linear-gradient(180deg, rgba(255,255,255,0.54), rgba(255,255,255,0.14));
+      opacity: 0.5;
+    }
+
+    .glass-specular {
+      background: linear-gradient(120deg, rgba(255,255,255,0.52), rgba(255,255,255,0) 38%);
+      opacity: 0.5;
+    }
+
+    .glass-content {
+      position: relative;
+      z-index: 1;
+      width: 100%;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -120,7 +157,7 @@
     .btn:hover { border-color: rgba(184,115,51,.45); }
 
     .switch {
-      width: 42px;
+      width: 44px;
       height: 24px;
       border: 1px solid var(--border);
       border-radius: 999px;
@@ -132,10 +169,10 @@
     .switch::after {
       content: "";
       position: absolute;
-      left: 2px;
-      top: 2px;
-      width: 18px;
-      height: 18px;
+      left: 1px;
+      top: 1px;
+      width: 20px;
+      height: 20px;
       border-radius: 999px;
       border: 1px solid var(--border);
       background: #fff;
@@ -143,7 +180,7 @@
     }
 
     .switch.on { background: var(--risk-soft); border-color: rgba(31,59,87,0.4); }
-    .switch.on::after { left: 20px; }
+    .switch.on::after { left: 21px; }
 
     .kpi-strip {
       display: grid;
@@ -171,6 +208,8 @@
     }
 
     .card .head {
+      position: relative;
+      overflow: hidden;
       padding: 12px 14px;
       border-bottom: 1px solid var(--border);
       display: flex;
@@ -178,6 +217,21 @@
       align-items: center;
       gap: 10px;
       flex-wrap: wrap;
+    }
+
+    .card .head::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      backdrop-filter: blur(4px) saturate(1.04);
+      filter: url(#glass-distortion);
+      opacity: 0.12;
+    }
+
+    .card .head > * {
+      position: relative;
+      z-index: 1;
     }
 
     .head .t { font-weight: 760; font-size: 13px; }
@@ -199,7 +253,7 @@
       height: 8px;
       width: 140px;
       border-radius: 999px;
-      background: linear-gradient(90deg, #f2f1ed, #dfd9cf, #d7bca6, #b18a69, var(--risk-navy));
+      background: linear-gradient(90deg, #f2f1ed, #e4e7ea, #ccd3da, #94a8ba, var(--risk-navy));
       border: 1px solid var(--border);
     }
 
@@ -290,6 +344,14 @@
   </style>
 </head>
 <body>
+  <!-- SVG Filter for Glass Distortion -->
+  <svg style="display: none" aria-hidden="true" focusable="false">
+    <filter id="glass-distortion">
+      <feTurbulence type="turbulence" baseFrequency="0.008" numOctaves="2" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="77" />
+    </filter>
+  </svg>
+
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
@@ -305,22 +367,27 @@
     </aside>
 
     <main class="main">
-      <section class="topbar">
-        <div class="title">
-          <div class="h1" id="title">Sandbox</div>
-          <div class="h2" id="subtitle">Edit capacity and demand assumptions to stress test strain points.</div>
-        </div>
-        <div class="top-controls">
-          <label class="small-note" for="rangeSel">Range</label>
-          <select id="rangeSel">
-            <option value="30">Month</option>
-            <option value="365" selected>Year</option>
-            <option value="1825">5 Years</option>
-          </select>
-          <label class="small-note">Report View</label>
-          <div id="reportSwitch" class="switch" role="switch" aria-checked="false" tabindex="0"></div>
-          <button class="btn" id="downloadBtn">Download JSON</button>
-          <button class="btn" id="resetBtn">Reset Sandbox</button>
+      <section class="topbar glass-card">
+        <div class="glass-filter"></div>
+        <div class="glass-overlay"></div>
+        <div class="glass-specular"></div>
+        <div class="glass-content">
+          <div class="title">
+            <div class="h1" id="title">Sandbox</div>
+            <div class="h2" id="subtitle">Edit capacity and demand assumptions to stress test strain points.</div>
+          </div>
+          <div class="top-controls">
+            <label class="small-note" for="rangeSel">Range</label>
+            <select id="rangeSel">
+              <option value="30">Month</option>
+              <option value="365" selected>Year</option>
+              <option value="1825">5 Years</option>
+            </select>
+            <label class="small-note">Report View</label>
+            <div id="reportSwitch" class="switch" role="switch" aria-checked="false" tabindex="0"></div>
+            <button class="btn" id="downloadBtn">Download JSON</button>
+            <button class="btn" id="resetBtn">Reset Sandbox</button>
+          </div>
         </div>
       </section>
 
@@ -579,7 +646,7 @@
         capacity.push(proj.cap);
       }
 
-      const overflowBand = demand.map((d, i) => d > capacity[i] ? d : null);
+      const strainBand = demand.map((d) => d);
 
       if (chart) chart.destroy();
       const ctx = document.getElementById("heroChart");
@@ -608,11 +675,14 @@
             },
             {
               label: "Strain area",
-              data: overflowBand,
+              data: strainBand,
               borderWidth: 0,
               pointRadius: 0,
-              fill: true,
-              backgroundColor: "rgba(31,59,87,0.16)"
+              fill: {
+                target: 1,
+                above: "rgba(31,59,87,0.20)",
+                below: "rgba(255,255,255,1)"
+              }
             }
           ]
         },
@@ -635,9 +705,9 @@
     function heatColor(ratio) {
       const x = clamp(ratio, 0, 1.7);
       if (x < 0.55) return "#f2f1ed";
-      if (x < 0.75) return "#dfd9cf";
-      if (x < 0.95) return "#d7bca6";
-      if (x < 1.1) return "#b18a69";
+      if (x < 0.75) return "#e4e7ea";
+      if (x < 0.95) return "#ccd3da";
+      if (x < 1.1) return "#94a8ba";
       return "#1f3b57";
     }
 
