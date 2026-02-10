@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Disposition Forecast</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bone: #f5f3ee;
+      --porcelain: #fcfbf8;
+      --graphite: #2f3438;
+      --slate: #687078;
+      --copper: #b87333;
+      --copper-soft: rgba(184, 115, 51, 0.14);
+      --risk-navy: #1f3b57;
+      --risk-soft: rgba(31, 59, 87, 0.14);
+      --border: #e2ddd4;
+      --card: #ffffff;
+      --shadow: 0 8px 24px rgba(47, 52, 56, 0.08);
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, var(--bone), var(--porcelain));
+      color: var(--graphite);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 250px 1fr;
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--border);
+      background: #f1eee7;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+
+    .brand .name { font-weight: 780; font-size: 15px; margin-bottom: 6px; }
+    .brand .sub { color: var(--slate); font-size: 12px; line-height: 1.3; }
+
+    .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .nav button {
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--graphite);
+      text-align: left;
+      padding: 10px;
+      border-radius: 10px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .nav button:hover { background: var(--copper-soft); border-color: rgba(184, 115, 51, 0.26); }
+    .nav button.active { background: var(--copper-soft); border-color: rgba(184, 115, 51, 0.36); }
+
+    .main {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .topbar, .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .topbar {
+      position: relative;
+      overflow: hidden;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .glass-filter,
+    .glass-overlay,
+    .glass-specular {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .glass-filter {
+      backdrop-filter: blur(8px) saturate(1.08);
+      filter: url(#glass-distortion);
+      opacity: 0.25;
+    }
+
+    .glass-overlay {
+      background: linear-gradient(180deg, rgba(255,255,255,0.54), rgba(255,255,255,0.14));
+      opacity: 0.5;
+    }
+
+    .glass-specular {
+      background: linear-gradient(120deg, rgba(255,255,255,0.52), rgba(255,255,255,0) 38%);
+      opacity: 0.5;
+    }
+
+    .glass-content {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .title .h1 { font-size: 16px; font-weight: 800; }
+    .title .h2 { font-size: 12px; color: var(--slate); margin-top: 4px; }
+
+    .top-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn, select, input[type="number"], input[type="text"] {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--graphite);
+      font-size: 13px;
+      padding: 8px 10px;
+    }
+
+    .btn { cursor: pointer; font-weight: 650; }
+    .btn:hover { border-color: rgba(184,115,51,.45); }
+
+    .switch {
+      width: 44px;
+      height: 24px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #e8e6e1;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .switch::after {
+      content: "";
+      position: absolute;
+      left: 1px;
+      top: 1px;
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #fff;
+      transition: left 120ms ease;
+    }
+
+    .switch.on { background: var(--risk-soft); border-color: rgba(31,59,87,0.4); }
+    .switch.on::after { left: 21px; }
+
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      gap: 10px;
+    }
+
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .kpi .label { font-size: 12px; color: var(--slate); font-weight: 700; }
+    .kpi .value { margin-top: 6px; font-size: 24px; font-weight: 800; }
+    .kpi .hint { margin-top: 4px; font-size: 11px; color: var(--slate); }
+
+    .viz-grid {
+      display: grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .card .head {
+      position: relative;
+      overflow: hidden;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .card .head::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      backdrop-filter: blur(4px) saturate(1.04);
+      filter: url(#glass-distortion);
+      opacity: 0.12;
+    }
+
+    .card .head > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .head .t { font-weight: 760; font-size: 13px; }
+    .head .s { color: var(--slate); font-size: 12px; }
+    .card .body { padding: 14px; }
+
+    #heroChart { height: 320px; width: 100%; }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--slate);
+      margin-bottom: 10px;
+    }
+
+    .legend-bar {
+      height: 8px;
+      width: 140px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #f2f1ed, #e4e7ea, #ccd3da, #94a8ba, var(--risk-navy));
+      border: 1px solid var(--border);
+    }
+
+    .dow, .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+    }
+
+    .dow div {
+      font-size: 10px;
+      color: var(--slate);
+      text-transform: uppercase;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .cell {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 5px;
+      border: 1px solid rgba(0,0,0,.04);
+    }
+
+    .inputs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .field {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label { font-size: 12px; color: var(--slate); font-weight: 700; }
+
+    .small-note {
+      color: var(--slate);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .assumptions-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--slate);
+    }
+
+    .assumptions-used { display: none; }
+
+    .footer-link {
+      text-align: right;
+      color: var(--slate);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    body.report .app { grid-template-columns: 1fr; }
+    body.report .sidebar { display: none; }
+    body.report .inputs-grid { display: none; }
+    body.report .assumptions-used { display: block; }
+
+    @media (max-width: 1200px) {
+      .kpi-strip { grid-template-columns: repeat(3, minmax(150px,1fr)); }
+      .viz-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 700px) {
+      .kpi-strip { grid-template-columns: repeat(2, minmax(150px,1fr)); }
+      .inputs-grid { grid-template-columns: 1fr; }
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: relative; height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <!-- SVG Filter for Glass Distortion -->
+  <svg style="display: none" aria-hidden="true" focusable="false">
+    <filter id="glass-distortion">
+      <feTurbulence type="turbulence" baseFrequency="0.008" numOctaves="2" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="77" />
+    </filter>
+  </svg>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="name">Disposition Forecast</div>
+        <div class="sub">Capacity planning for cremation operations.</div>
+      </div>
+      <div class="nav" id="nav">
+        <button data-tab="sandbox" class="active">Sandbox</button>
+        <button data-tab="miami">Miami-Dade, FL</button>
+        <button data-tab="anchorage">Anchorage, AK</button>
+        <button data-tab="mecklenburg">Mecklenburg, NC</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="topbar glass-card">
+        <div class="glass-filter"></div>
+        <div class="glass-overlay"></div>
+        <div class="glass-specular"></div>
+        <div class="glass-content">
+          <div class="title">
+            <div class="h1" id="title">Sandbox</div>
+            <div class="h2" id="subtitle">Edit capacity and demand assumptions to stress test strain points.</div>
+          </div>
+          <div class="top-controls">
+            <label class="small-note" for="rangeSel">Range</label>
+            <select id="rangeSel">
+              <option value="30">Month</option>
+              <option value="365" selected>Year</option>
+              <option value="1825">5 Years</option>
+            </select>
+            <label class="small-note">Report View</label>
+            <div id="reportSwitch" class="switch" role="switch" aria-checked="false" tabindex="0"></div>
+            <button class="btn" id="downloadBtn">Download JSON</button>
+            <button class="btn" id="resetBtn">Reset Sandbox</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="kpi-strip">
+        <article class="kpi"><div class="label">Projected deaths</div><div class="value" id="kDeaths">—</div><div class="hint" id="kDeathsHint">Selected period</div></article>
+        <article class="kpi"><div class="label">Projected cremations</div><div class="value" id="kCrem">—</div><div class="hint" id="kCremHint">Selected period</div></article>
+        <article class="kpi"><div class="label">Utilization</div><div class="value" id="kUtil">—</div><div class="hint">Demand / effective capacity</div></article>
+        <article class="kpi"><div class="label">Backlog risk</div><div class="value" id="kRisk">—</div><div class="hint">% days demand exceeds capacity</div></article>
+        <article class="kpi"><div class="label">First strain date</div><div class="value" id="kFirst" style="font-size:19px">—</div><div class="hint">First day demand exceeds capacity</div></article>
+      </section>
+
+      <section class="viz-grid">
+        <article class="card">
+          <div class="head">
+            <div>
+              <div class="t">Demand vs effective capacity</div>
+              <div class="s" id="chartMeta">Updated from selected assumptions</div>
+            </div>
+          </div>
+          <div class="body">
+            <canvas id="heroChart"></canvas>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="head">
+            <div>
+              <div class="t">Calendar heatmap</div>
+              <div class="s" id="heatmapMonth">Current month</div>
+            </div>
+          </div>
+          <div class="body">
+            <div class="legend">
+              <span>Low</span><div class="legend-bar"></div><span>Strain</span>
+            </div>
+            <div class="dow" id="dow"></div>
+            <div class="heatmap-grid" id="heatmap"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="inputs-grid" id="inputsSection">
+        <article class="card">
+          <div class="head"><div><div class="t">Capacity levers</div><div class="s">Always editable in sandbox</div></div></div>
+          <div class="body fields" id="capacityFields"></div>
+        </article>
+        <article class="card">
+          <div class="head"><div><div class="t">Demand inputs</div><div class="s">County + mortality assumptions</div></div></div>
+          <div class="body fields" id="demandFields"></div>
+        </article>
+      </section>
+
+      <section class="card assumptions-used" id="assumptionsUsed">
+        <div class="head"><div><div class="t">Assumptions used</div><div class="s">Collapsed input summary for report output</div></div></div>
+        <div class="body small-note" id="assumptionsUsedBody">—</div>
+      </section>
+
+      <section class="card">
+        <div class="head"><div><div class="t">Assumptions</div><div class="s">Confidence and source anchors</div></div></div>
+        <div class="body assumptions-panel">
+          <div>
+            <div><strong>Confidence target:</strong> P=0.95</div>
+            <div>Scenario confidence is a planning assumption (not a statistical confidence interval).</div>
+          </div>
+          <div>
+            <div><strong>Data sources (placeholder):</strong> NFDA, CANA, SSA, CDC WONDER.</div>
+            <div>Defaults include national anchors and editable local assumptions.</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer-link"><a href="#" id="assumptionLink">Assumptions</a></div>
+    </main>
+  </div>
+
+  <script>
+    const fmtInt = (n) => Number.isFinite(n) ? Math.round(n).toLocaleString() : "—";
+    const fmt1 = (n) => Number.isFinite(n) ? (Math.round(n * 10) / 10).toLocaleString() : "—";
+    const fmtPct = (n) => Number.isFinite(n) ? `${Math.round(n * 100)}%` : "—";
+    const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+    const STORAGE_KEY = "df_sandbox_v2";
+
+    function today() {
+      const d = new Date();
+      d.setHours(0,0,0,0);
+      return d;
+    }
+    function addDays(d, days) {
+      const n = new Date(d);
+      n.setDate(n.getDate() + days);
+      return n;
+    }
+    function ymd(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2, "0");
+      const da = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${da}`;
+    }
+    function monthLabel(d) {
+      return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    }
+
+    const DEFAULTS = {
+      sandbox: {
+        id: "sandbox",
+        mode: "editable",
+        location: { label: "Sandbox", county: "", state: "" },
+        capacity: {
+          retorts: 2,
+          cycles_per_retort_per_day: 2.0,
+          operating_days_per_week: 5,
+          staffing_factor: 0.85,
+          refrigeration_slots: 20
+        },
+        demand: {
+          deaths_per_year: 6500,
+          cremation_rate: 0.634,
+          authorization_delay_days: 2.0,
+          seasonality_on: true,
+          surge: 0
+        }
+      },
+      miami: {
+        id: "miami",
+        mode: "readonly",
+        location: { label: "Miami-Dade County, Florida", county: "Miami-Dade", state: "FL" },
+        capacity: { retorts: 9, cycles_per_retort_per_day: 2.3, operating_days_per_week: 6, staffing_factor: 1.0, refrigeration_slots: 120 },
+        demand: { deaths_per_year: 28000, cremation_rate: 0.634, authorization_delay_days: 2.4, seasonality_on: true, surge: 0 }
+      },
+      anchorage: {
+        id: "anchorage",
+        mode: "readonly",
+        location: { label: "Anchorage Borough, Alaska", county: "Anchorage", state: "AK" },
+        capacity: { retorts: 2, cycles_per_retort_per_day: 1.7, operating_days_per_week: 5, staffing_factor: 0.85, refrigeration_slots: 26 },
+        demand: { deaths_per_year: 2600, cremation_rate: 0.618, authorization_delay_days: 3.5, seasonality_on: true, surge: 0 }
+      },
+      mecklenburg: {
+        id: "mecklenburg",
+        mode: "readonly",
+        location: { label: "Mecklenburg County, North Carolina", county: "Mecklenburg", state: "NC" },
+        capacity: { retorts: 4, cycles_per_retort_per_day: 2.0, operating_days_per_week: 5, staffing_factor: 0.85, refrigeration_slots: 55 },
+        demand: { deaths_per_year: 9500, cremation_rate: 0.634, authorization_delay_days: 2.2, seasonality_on: true, surge: 0 }
+      }
+    };
+
+    const appState = {
+      currentTab: "sandbox",
+      rangeDays: 365,
+      heatCursor: today(),
+      sandbox: null,
+      cases: {
+        miami: DEFAULTS.miami,
+        anchorage: DEFAULTS.anchorage,
+        mecklenburg: DEFAULTS.mecklenburg
+      }
+    };
+
+    let chart;
+
+    function seasonality(month) {
+      return [1.08, 1.05, 1.02, 1, 0.98, 0.96, 0.95, 0.96, 0.98, 1, 1.03, 1.07][month] || 1;
+    }
+
+    function activeState() {
+      return appState.currentTab === "sandbox" ? appState.sandbox : appState.cases[appState.currentTab];
+    }
+
+    function effectiveCapacityPerDay(s) {
+      const retortBase = s.capacity.retorts * s.capacity.cycles_per_retort_per_day;
+      const operatingAdj = s.capacity.operating_days_per_week / 7;
+      const staffAdj = s.capacity.staffing_factor;
+      const effective = retortBase * operatingAdj * staffAdj;
+      return effective;
+    }
+
+    function demandForDate(s, d) {
+      const deathsDaily = s.demand.deaths_per_year / 365;
+      const seasonal = s.demand.seasonality_on ? seasonality(d.getMonth()) : 1;
+      const surge = 1 + (s.demand.surge || 0);
+      const cremRate = s.demand.cremation_rate || 0.6;
+      return deathsDaily * seasonal * surge * cremRate;
+    }
+
+    function runProjection(s, start, days) {
+      const cap = effectiveCapacityPerDay(s);
+      const labels = [];
+      const demandSeries = [];
+      const capSeries = [];
+
+      let totalDeaths = 0;
+      let totalCrem = 0;
+      let backlog = 0;
+      let riskDays = 0;
+      let firstStrain = null;
+
+      for (let i = 0; i < days; i++) {
+        const d = addDays(start, i);
+        const deathsDaily = (s.demand.deaths_per_year / 365) * (s.demand.seasonality_on ? seasonality(d.getMonth()) : 1) * (1 + (s.demand.surge || 0));
+        const demand = deathsDaily * s.demand.cremation_rate;
+
+        backlog = Math.max(0, backlog + demand - cap);
+
+        const isRisk = demand > cap || backlog > 0;
+        if (isRisk) {
+          riskDays += 1;
+          if (!firstStrain) firstStrain = new Date(d);
+        }
+
+        totalDeaths += deathsDaily;
+        totalCrem += demand;
+
+        labels.push(ymd(d));
+        demandSeries.push(demand);
+        capSeries.push(cap);
+      }
+
+      const utilization = cap > 0 ? (totalCrem / days) / cap : Infinity;
+      const backlogRisk = riskDays / days;
+
+      return {
+        totalDeaths,
+        totalCrem,
+        utilization,
+        backlogRisk,
+        firstStrain,
+        cap,
+        labels,
+        demandSeries,
+        capSeries
+      };
+    }
+
+    function renderKPIs(s, p) {
+      document.getElementById("kDeaths").textContent = fmtInt(p.totalDeaths);
+      document.getElementById("kCrem").textContent = fmtInt(p.totalCrem);
+      document.getElementById("kUtil").textContent = fmtPct(p.utilization);
+      document.getElementById("kRisk").textContent = fmtPct(p.backlogRisk);
+      document.getElementById("kFirst").textContent = p.firstStrain ? ymd(p.firstStrain) : "No strain";
+      document.getElementById("kDeathsHint").textContent = `${appState.rangeDays} day period`;
+      document.getElementById("kCremHint").textContent = `Cremation rate ${fmtPct(s.demand.cremation_rate)}`;
+    }
+
+    function renderChart(proj) {
+      const bucket = appState.rangeDays > 365 ? 30 : appState.rangeDays > 60 ? 7 : 1;
+      const labels = [];
+      const demand = [];
+      const capacity = [];
+
+      for (let i = 0; i < proj.labels.length; i += bucket) {
+        const end = Math.min(proj.labels.length, i + bucket);
+        const chunk = proj.demandSeries.slice(i, end);
+        const avgDemand = chunk.reduce((a,b)=>a+b,0) / chunk.length;
+        labels.push(proj.labels[i]);
+        demand.push(avgDemand);
+        capacity.push(proj.cap);
+      }
+
+      const strainBand = demand.map((d) => d);
+
+      if (chart) chart.destroy();
+      const ctx = document.getElementById("heroChart");
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Projected demand",
+              data: demand,
+              borderColor: "rgba(184,115,51,0.95)",
+              backgroundColor: "rgba(184,115,51,0.14)",
+              tension: 0.2,
+              pointRadius: 0,
+              borderWidth: 2
+            },
+            {
+              label: "Effective capacity",
+              data: capacity,
+              borderColor: "rgba(31,59,87,0.9)",
+              borderDash: [6,6],
+              tension: 0,
+              pointRadius: 0,
+              borderWidth: 2
+            },
+            {
+              label: "Strain area",
+              data: strainBand,
+              borderWidth: 0,
+              pointRadius: 0,
+              fill: {
+                target: 1,
+                above: "rgba(31,59,87,0.20)",
+                below: "rgba(255,255,255,1)"
+              }
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: "#687078", boxWidth: 10, boxHeight: 10 } }
+          },
+          scales: {
+            x: { ticks: { color: "#687078", maxTicksLimit: 8 }, grid: { color: "rgba(226,221,212,0.5)" } },
+            y: { ticks: { color: "#687078" }, grid: { color: "rgba(226,221,212,0.5)" } }
+          }
+        }
+      });
+
+      document.getElementById("chartMeta").textContent = `Bucket ${bucket === 1 ? "daily" : bucket === 7 ? "weekly" : "monthly"} · effective capacity ${fmt1(proj.cap)}/day`;
+    }
+
+    function heatColor(ratio) {
+      const x = clamp(ratio, 0, 1.7);
+      if (x < 0.55) return "#f2f1ed";
+      if (x < 0.75) return "#e4e7ea";
+      if (x < 0.95) return "#ccd3da";
+      if (x < 1.1) return "#94a8ba";
+      return "#1f3b57";
+    }
+
+    function renderHeatmap(s) {
+      const dow = document.getElementById("dow");
+      const grid = document.getElementById("heatmap");
+      dow.innerHTML = "";
+      grid.innerHTML = "";
+
+      ["Su","Mo","Tu","We","Th","Fr","Sa"].forEach(d => {
+        const el = document.createElement("div");
+        el.textContent = d;
+        dow.appendChild(el);
+      });
+
+      const monthStart = new Date(appState.heatCursor.getFullYear(), appState.heatCursor.getMonth(), 1);
+      const start = addDays(monthStart, -monthStart.getDay());
+      const cap = effectiveCapacityPerDay(s);
+
+      for (let i = 0; i < 42; i++) {
+        const date = addDays(start, i);
+        const demand = demandForDate(s, date);
+        const util = cap > 0 ? demand / cap : 2;
+        const backlog = Math.max(0, demand - cap);
+
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.style.background = heatColor(util + backlog * 0.02);
+        if (date.getMonth() !== appState.heatCursor.getMonth()) cell.style.opacity = "0.4";
+        cell.title = `${ymd(date)}\nProjected cremations: ${fmt1(demand)}\nCapacity: ${fmt1(cap)}\nUtilization: ${fmtPct(util)}\nBacklog: ${fmt1(backlog)}`;
+        grid.appendChild(cell);
+      }
+
+      document.getElementById("heatmapMonth").textContent = monthLabel(appState.heatCursor);
+    }
+
+    function buildField(label, type, value, onInput, opts = {}) {
+      const wrap = document.createElement("div");
+      wrap.className = "field";
+      const l = document.createElement("label");
+      l.textContent = label;
+      wrap.appendChild(l);
+
+      const input = document.createElement("input");
+      input.type = type;
+      input.value = value;
+      if (opts.step !== undefined) input.step = opts.step;
+      if (opts.min !== undefined) input.min = opts.min;
+      if (opts.max !== undefined) input.max = opts.max;
+      if (opts.disabled) input.disabled = true;
+      input.addEventListener("input", () => onInput(input.value));
+      wrap.appendChild(input);
+      return wrap;
+    }
+
+    function buildSelectField(label, value, choices, onInput, disabled = false) {
+      const wrap = document.createElement("div");
+      wrap.className = "field";
+      const l = document.createElement("label");
+      l.textContent = label;
+      const sel = document.createElement("select");
+      choices.forEach(c => {
+        const op = document.createElement("option");
+        op.value = String(c.value);
+        op.textContent = c.label;
+        if (String(c.value) === String(value)) op.selected = true;
+        sel.appendChild(op);
+      });
+      sel.disabled = disabled;
+      sel.addEventListener("change", () => onInput(sel.value));
+      wrap.appendChild(l);
+      wrap.appendChild(sel);
+      return wrap;
+    }
+
+    function renderInputs() {
+      const capEl = document.getElementById("capacityFields");
+      const demEl = document.getElementById("demandFields");
+      capEl.innerHTML = "";
+      demEl.innerHTML = "";
+
+      const s = activeState();
+      const editable = appState.currentTab === "sandbox";
+
+      const setAndRefresh = (fn) => {
+        if (!editable) return;
+        fn();
+        persistSandbox();
+        recalc();
+      };
+
+      capEl.appendChild(buildField("Retorts", "number", s.capacity.retorts, v => setAndRefresh(()=> s.capacity.retorts = clamp(parseInt(v || "0",10), 0, 60)), {min:0, max:60, step:1, disabled:!editable}));
+      capEl.appendChild(buildField("Cycles per retort / day", "number", s.capacity.cycles_per_retort_per_day, v => setAndRefresh(()=> s.capacity.cycles_per_retort_per_day = clamp(parseFloat(v || "0"), 0, 10)), {min:0, max:10, step:0.1, disabled:!editable}));
+      capEl.appendChild(buildField("Operating days / week", "number", s.capacity.operating_days_per_week, v => setAndRefresh(()=> s.capacity.operating_days_per_week = clamp(parseFloat(v || "0"), 0, 7)), {min:0, max:7, step:1, disabled:!editable}));
+      capEl.appendChild(buildSelectField("Staffing factor", s.capacity.staffing_factor, [
+        {label:"0.70", value:0.7},
+        {label:"0.85", value:0.85},
+        {label:"1.00", value:1.0}
+      ], v => setAndRefresh(()=> s.capacity.staffing_factor = parseFloat(v)), !editable));
+      capEl.appendChild(buildField("Refrigeration slots", "number", s.capacity.refrigeration_slots, v => setAndRefresh(()=> s.capacity.refrigeration_slots = clamp(parseInt(v || "0",10), 0, 999)), {min:0, max:999, step:1, disabled:!editable}));
+
+      demEl.appendChild(buildSelectField("County", appState.currentTab, [
+        {label:"Sandbox", value:"sandbox"},
+        {label:"Miami-Dade, FL", value:"miami"},
+        {label:"Anchorage, AK", value:"anchorage"},
+        {label:"Mecklenburg, NC", value:"mecklenburg"}
+      ], v => setTab(v), false));
+      demEl.appendChild(buildField("Base deaths / year", "number", s.demand.deaths_per_year, v => setAndRefresh(()=> s.demand.deaths_per_year = clamp(parseFloat(v || "0"), 0, 1000000)), {min:0, max:1000000, step:50, disabled:!editable}));
+      demEl.appendChild(buildField("Cremation rate", "number", s.demand.cremation_rate, v => setAndRefresh(()=> s.demand.cremation_rate = clamp(parseFloat(v || "0"), 0, 1)), {min:0, max:1, step:0.01, disabled:!editable}));
+      demEl.appendChild(buildField("Authorization delay (days)", "number", s.demand.authorization_delay_days, v => setAndRefresh(()=> s.demand.authorization_delay_days = clamp(parseFloat(v || "0"), 0, 15)), {min:0, max:15, step:0.1, disabled:!editable}));
+      demEl.appendChild(buildField("Demand surge", "number", s.demand.surge, v => setAndRefresh(()=> s.demand.surge = clamp(parseFloat(v || "0"), 0, 1)), {min:0, max:1, step:0.01, disabled:!editable}));
+    }
+
+    function updateAssumptionsUsed(s, p) {
+      const body = document.getElementById("assumptionsUsedBody");
+      body.innerHTML = `
+        <strong>${s.location.label}</strong><br>
+        Retorts: ${fmtInt(s.capacity.retorts)} · Cycles/retort/day: ${fmt1(s.capacity.cycles_per_retort_per_day)} · Operating days/week: ${fmt1(s.capacity.operating_days_per_week)} · Staffing factor: ${fmt1(s.capacity.staffing_factor)}<br>
+        Deaths/year: ${fmtInt(s.demand.deaths_per_year)} · Cremation rate: ${fmtPct(s.demand.cremation_rate)} · Authorization delay: ${fmt1(s.demand.authorization_delay_days)} days<br>
+        Effective capacity/day: ${fmt1(p.cap)} · Backlog risk: ${fmtPct(p.backlogRisk)} · First strain date: ${p.firstStrain ? ymd(p.firstStrain) : "No strain"}
+      `;
+    }
+
+    function recalc() {
+      const s = activeState();
+      const proj = runProjection(s, today(), appState.rangeDays);
+      renderKPIs(s, proj);
+      renderChart(proj);
+      renderHeatmap(s);
+      renderInputs();
+      updateAssumptionsUsed(s, proj);
+    }
+
+    function setTab(tab) {
+      appState.currentTab = tab;
+      document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+      const s = activeState();
+      document.getElementById("title").textContent = tab === "sandbox" ? "Sandbox" : s.location.label;
+      document.getElementById("subtitle").textContent = tab === "sandbox"
+        ? "Edit capacity and demand assumptions to stress test strain points."
+        : "Case study defaults are locked. Copy values into sandbox to tune assumptions.";
+      recalc();
+    }
+
+    function toggleReport() {
+      const on = document.body.classList.toggle("report");
+      const sw = document.getElementById("reportSwitch");
+      sw.classList.toggle("on", on);
+      sw.setAttribute("aria-checked", on ? "true" : "false");
+    }
+
+    function persistSandbox() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appState.sandbox));
+    }
+
+    function loadSandbox() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) throw new Error("none");
+        const parsed = JSON.parse(raw);
+        parsed.id = "sandbox";
+        parsed.mode = "editable";
+        appState.sandbox = parsed;
+      } catch (_) {
+        appState.sandbox = JSON.parse(JSON.stringify(DEFAULTS.sandbox));
+      }
+    }
+
+    function downloadJSON() {
+      const s = activeState();
+      const blob = new Blob([JSON.stringify(s, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `disposition-forecast_${appState.currentTab}_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function resetSandbox() {
+      appState.sandbox = JSON.parse(JSON.stringify(DEFAULTS.sandbox));
+      persistSandbox();
+      if (appState.currentTab !== "sandbox") setTab("sandbox");
+      else recalc();
+    }
+
+    function init() {
+      loadSandbox();
+
+      document.querySelectorAll("#nav button").forEach(btn => btn.addEventListener("click", () => setTab(btn.dataset.tab)));
+      document.getElementById("rangeSel").addEventListener("change", (e) => {
+        appState.rangeDays = parseInt(e.target.value, 10);
+        recalc();
+      });
+      document.getElementById("reportSwitch").addEventListener("click", toggleReport);
+      document.getElementById("reportSwitch").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggleReport();
+        }
+      });
+      document.getElementById("downloadBtn").addEventListener("click", downloadJSON);
+      document.getElementById("resetBtn").addEventListener("click", resetSandbox);
+      document.getElementById("assumptionLink").addEventListener("click", (e) => {
+        e.preventDefault();
+        document.getElementById("assumptionsUsed").scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+
+      setTab("sandbox");
+    }
+
+    init();
+  </script>
+</body>
+</html>
