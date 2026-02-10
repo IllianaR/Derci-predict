@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Disposition Forecast</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="assets/brand-mark.svg" alt="Derci logo" class="brand-logo" />
+        <div class="sub">Capacity planning for cremation operations.</div>
+      </div>
+
+      <div class="nav-shell">
+        <div class="nav" id="nav">
+          <button data-tab="sandbox" class="active">Sandbox</button>
+          <button data-tab="miami">Miami-Dade, FL</button>
+          <button data-tab="anchorage">Anchorage, AK</button>
+          <button data-tab="mecklenburg">Mecklenburg, NC</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="topbar card">
+        <div class="title">
+          <div class="h1" id="title">Sandbox</div>
+          <div class="h2" id="subtitle">Edit capacity and demand assumptions to stress test strain points.</div>
+        </div>
+        <div class="top-controls">
+          <label class="small-note" for="rangeSel">Range</label>
+          <select id="rangeSel">
+            <option value="30">Month</option>
+            <option value="365" selected>Year</option>
+            <option value="1825">5 Years</option>
+          </select>
+          <button class="btn" id="resetBtn">Reset Sandbox</button>
+        </div>
+      </section>
+
+      <section class="kpi-strip">
+        <article class="kpi"><div class="label">Projected deaths</div><div class="value" id="kDeaths">—</div><div class="hint" id="kDeathsHint">Selected period</div></article>
+        <article class="kpi"><div class="label">Projected cremations</div><div class="value" id="kCrem">—</div><div class="hint" id="kCremHint">Selected period</div></article>
+        <article class="kpi"><div class="label">Utilization</div><div class="value" id="kUtil">—</div><div class="hint">Demand / effective capacity</div></article>
+        <article class="kpi"><div class="label">Backlog risk</div><div class="value" id="kRisk">—</div><div class="hint">% days demand exceeds capacity</div></article>
+        <article class="kpi"><div class="label">First strain date</div><div class="value" id="kFirst">—</div><div class="hint">First day demand exceeds capacity</div></article>
+      </section>
+
+      <section class="util-note card">
+        <div class="body small-note">
+          <strong>How utilization is calculated:</strong> Utilization = projected cremations per day ÷ effective capacity per day.
+          At 100%, demand matches capacity. Values above 100% indicate strain days where backlog can begin.
+        </div>
+      </section>
+
+      <section class="viz-grid">
+        <article class="card">
+          <div class="head">
+            <div>
+              <div class="t">Demand vs effective capacity</div>
+              <div class="s" id="chartMeta">Updated from selected assumptions</div>
+            </div>
+          </div>
+          <div class="body">
+            <canvas id="heroChart"></canvas>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="head">
+            <div>
+              <div class="t">Calendar heatmap</div>
+              <div class="s" id="heatmapMonth">Current month</div>
+            </div>
+          </div>
+          <div class="body">
+            <div class="legend">
+              <span>&lt;80%</span><div class="legend-bar"></div><span>80–100%</span><span>&gt;100%</span>
+            </div>
+            <div class="dow" id="dow"></div>
+            <div class="heatmap-grid" id="heatmap"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="inputs-grid" id="inputsSection">
+        <article class="card">
+          <div class="head"><div><div class="t">Capacity levers</div><div class="s">Always editable in sandbox</div></div></div>
+          <div class="body fields" id="capacityFields"></div>
+        </article>
+        <article class="card">
+          <div class="head"><div><div class="t">Demand inputs</div><div class="s">County + mortality assumptions</div></div></div>
+          <div class="body fields" id="demandFields"></div>
+        </article>
+      </section>
+
+      <section class="card">
+        <div class="head"><div><div class="t">Assumptions</div><div class="s">Confidence and source anchors</div></div></div>
+        <div class="body assumptions-panel">
+          <div>
+            <div><strong>Confidence target:</strong> P=0.95</div>
+            <div>Scenario confidence is a planning assumption (not a statistical confidence interval).</div>
+          </div>
+          <div>
+            <div><strong>Data sources (placeholder):</strong> NFDA, CANA, SSA, CDC WONDER.</div>
+            <div>Defaults include national anchors and editable local assumptions.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
